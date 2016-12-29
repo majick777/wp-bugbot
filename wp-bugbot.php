@@ -7,6 +7,7 @@ Description: WP BugBot, Plugin And Theme Search Editor Engine! Search installed 
 Version: 1.7.0
 Author: Tony Hayes
 Author URI: http://dreamjester.net
+GitHub Plugin URI: majick777/wp-bugbot
 */
 
 if (!function_exists('add_action')) {exit;}

@@ -30,7 +30,8 @@ A 3rd party developer and bugfixers dream... find and squash those pesty bugs.
 * You can now search (but not edit) Wordpress Core files too
 * Works with Multisite (access from network/plugins.php etc.)
 
-[WP BugBot Home] (http://wordquest.org/plugins/wp-bugbot/)
+[WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
+[Support Forum](http://wordquest.org/support/wp-bugbot/)
 
 **Search**:
 
@@ -59,8 +60,8 @@ A 3rd party developer and bugfixers dream... find and squash those pesty bugs.
 * Shows Plugin/Theme files not editable/listed by Wordpress
 * Javascript jump to line and find in code on editor screen
 
-[WP BugBot Home] (http://wordquest.org/plugins/wp-bugbot/)
-
+[WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
+[Support Forum](http://wordquest.org/support/wp-bugbot/)
 
 == Installation ==
 
@@ -206,25 +207,25 @@ pre-filled 'Find in Text' to search for the occurence inside the text area.
 
 == Other Notes ==
 
-[WP BugBot Home] (http://wordquest.org/plugins/wp-bugbot/)
+[WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
 
 Like this plugin? Check out more of our free plugins here: 
-[WordQuest] (http://wordquest.org/plugins/ "WordQuest Plugins")
+[WordQuest](http://wordquest.org/plugins/ "WordQuest Plugins")
 
 Looking for an awesome theme? Check out my child theme framework:
-[BioShip Child Theme Framework] (http://bioship.space "BioShip Child Theme Framework")
+[BioShip Child Theme Framework](http://bioship.space "BioShip Child Theme Framework")
 
 = Support =
 For support or if you have an idea to improve this plugin:
-[WP BugBot Support Quests] (http://wordquest.org/support/wp-bugbot/ "WP BugBot Support")
+[WP BugBot Support Quests](http://wordquest.org/support/wp-bugbot/ "WP BugBot Support")
 
 = Contribute = 
 Help support improvements and log priority feature requests by a gift of appreciation:
-[Contribute to WP BugBot] (http://wordquest.org/contribute/?plugin=wp-bugbot)
+[Contribute to WP BugBot](http://wordquest.org/contribute/?plugin=wp-bugbot)
 
 = Development =
 To aid directly in development, please fork on Github and do a pull request:
-[WP BugBot on Github] (http://github.com/majick777/wp-bugbot/)
+[WP BugBot on Github](http://github.com/majick777/wp-bugbot/)
 
 = Limitations = 
 * 'Scroll to Line' editor javascript feature is not precise in all browsers.
