@@ -120,6 +120,13 @@ of your plugins at once. Also, you might want to check you server's maximum exec
 time limit for scripts and increase that if it is too low.
 
 
+= Can I use the plugin with file editing disabled? =
+
+Yes, if you have defined DISALLOW_FILE_EDIT as true in your wp-config.php to remove
+the plugin and theme editing interfaces, you can still use the plugin and theme search.
+BugBot will detect this is the case and move all interfaces to the core Updates page.
+
+
 = The scroll to line feature is not working properly for me? = 
 
 This feature is thanks to Andrew Buckman's Wordpress Editor Search:
@@ -142,6 +149,17 @@ pre-filled 'Find in Text' to search for the occurence inside the text area.
 
 
 == Changelog ==
+
+= 1.7.2 =
+* Update to WordQuest Library 1.6.6
+* Fix error log links to file content displays
+* Use WP Filesystem writing for theme editor
+
+= 1.7.1 =
+* Update to Freemius Library 1.2.1.5
+* Added input for error log lines to process
+* Check theme editor and write method before using
+* Allow for searching with DISALLOW_FILE_EDIT true
 
 = 1.7.0 =
 * Added error log searches and display
