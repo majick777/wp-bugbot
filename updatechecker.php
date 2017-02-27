@@ -1214,7 +1214,7 @@ if (file_exists(dirname(__FILE__) . '/github-checker.php')) {
 	require_once(dirname(__FILE__) . '/github-checker.php');
 }
 
-//Register classes defined in this file with the factory.
+// Register classes defined in this file with the factory.
 PucFactory::addVersion('PluginUpdateChecker', 'PluginUpdateChecker_2_1', '2.1');
 PucFactory::addVersion('PluginUpdate', 'PluginUpdate_2_1', '2.1');
 PucFactory::addVersion('PluginInfo', 'PluginInfo_2_1', '2.1');
@@ -1224,14 +1224,23 @@ PucFactory::addVersion('PucGitHubChecker', 'PucGitHubChecker_2_1', '2.1');
  * Create non-versioned variants of the update checker classes. This allows for backwards
  * compatibility with versions that did not use a factory, and it simplifies doc-comments.
  */
-if ( !class_exists('PluginUpdateChecker', false) ) {
-	class PluginUpdateChecker extends PluginUpdateChecker_2_1 { }
+
+// if ( !class_exists('PluginUpdateChecker', false) ) {
+// 	class PluginUpdateChecker extends PluginUpdateChecker_2_1 { }
+// }
+
+// if ( !class_exists('PluginUpdate', false) ) {
+//	class PluginUpdate extends PluginUpdate_2_1 {}
+// }
+
+// if ( !class_exists('PluginInfo', false) ) {
+// 	class PluginInfo extends PluginInfo_2_1 {}
+// }
+
+// maybe Load the Update Checker now
+if ( (isset($vslug)) && (isset($vfile)) ) {
+	$vurl = 'http://wordquest.org/downloads/?action=get_metadata&slug='.$vslug;
+	$vupdatecheck = new PluginUpdateChecker_2_1($vurl, $vfile, $vslug);
 }
 
-if ( !class_exists('PluginUpdate', false) ) {
-	class PluginUpdate extends PluginUpdate_2_1 {}
-}
-
-if ( !class_exists('PluginInfo', false) ) {
-	class PluginInfo extends PluginInfo_2_1 {}
-}
+?>
