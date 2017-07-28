@@ -7,10 +7,10 @@ Plugin URI: http://wordquest.net/plugins/wp-bugbot/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.7
+Tested up to: 4.8
 Stable tag: trunk
 
-Lets you search your plugin and theme files for keywords from the editor screens. A 3rd party plugin bugfixers dream.
+Search your current plugin/theme/core files for keywords from admin. A 3rd party plugin bugfixers dream.
 
 == Description ==
 
@@ -139,6 +139,15 @@ pre-filled 'Find in Text' to search for the occurence inside the text area.
 (Alternatively, Press Control-F or Apple-F to use your browser's inbuilt search.)
 
 
+= How do I filter the PHP error log files searched for? = 
+
+WP BugBot will attempt to automatically detect the setting for your PHP error log files.
+If you have a more complex setup or wish to change the filenames that are searched for,
+you can use the filter 'bugbot_error_log_search' to return an array of error log filenames.
+If you wish to turn this feature off (it is run on the WP BugBot admin screen only)
+simply use this same filter and return an empty array.
+
+
 == Screenshots ==
 
 1. Plugin Search Interface
@@ -149,6 +158,16 @@ pre-filled 'Find in Text' to search for the occurence inside the text area.
 
 
 == Changelog ==
+
+= 1.7.4 =
+* Fix to last searched saving logic
+* Fix to settings page link for DISALLOW_FILE_EDIT
+* Fix to permission checks for DISALLOW_FILE_EDIT
+* Fix to javascript checks on update-core.php page
+
+= 1.7.3 = 
+* Added error log search filename filter
+* Extend error search for subdirectory installs
 
 = 1.7.2 =
 * Update to WordQuest Library 1.6.6
