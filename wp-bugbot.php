@@ -4,7 +4,7 @@
 Plugin Name: WP BugBot
 Plugin URI: http://wordquest.org/plugins/wp-bugbot/
 Description: WP BugBot, Plugin And Theme Search Editor Engine! Search installed plugin and theme files (and core) for code from the editor screens. A bugfixers dream..!
-Version: 1.7.2
+Version: 1.7.4
 Author: Tony Hayes
 Author URI: http://dreamjester.net
 GitHub Plugin URI: majick777/wp-bugbot
@@ -22,12 +22,12 @@ if (!function_exists('add_action')) {exit;}
 // -----------------
 global $wordquestplugins, $vbugbotslug, $vbugbotversion;
 $vslug = $vbugbotslug = 'wp-bugbot';
-$wordquestplugins[$vslug]['version'] = $vbugbotversion = '1.7.2';
+$wordquestplugins[$vslug]['version'] = $vbugbotversion = '1.7.4';
 $wordquestplugins[$vslug]['title'] = 'WP BugBot';
 $wordquestplugins[$vslug]['namespace'] = 'bugbot';
 $wordquestplugins[$vslug]['settings'] = 'bugbot';
 $wordquestplugins[$vslug]['hasplans'] = false;
-// $wordquestplugins[$vslug]['wporgslug'] = 'wp-bugbot';
+$wordquestplugins[$vslug]['wporgslug'] = 'wp-bugbot';
 $vbugbotpage = false; // settings page switch
 
 // ------------------------
@@ -165,20 +165,17 @@ $vbugbotdebug = get_option('bugbot_debug');
 // File Search Triggers
 // --------------------
 if (is_admin()) {
-	if ((isset($_REQUEST['pluginfilesearch'])) && (isset($_REQUEST['searchkeyword']))) {
-		if (($_REQUEST['pluginfilesearch'] != '') && ($_REQUEST['searchkeyword'] != '')) {
+	if ( (isset($_REQUEST['pluginfilesearch'])) && (isset($_REQUEST['searchkeyword']))
+		&& ($_REQUEST['pluginfilesearch'] != '') && ($_REQUEST['searchkeyword'] != '') ) {
 			add_filter('all_admin_notices', 'bugbot_plugin_file_do_search');
-		}
 	}
-	if ((isset($_REQUEST['themefilesearch'])) && (isset($_REQUEST['searchkeyword']))) {
-		if (($_REQUEST['themefilesearch'] != '') && ($_REQUEST['searchkeyword'] != '')) {
+	if ( (isset($_REQUEST['themefilesearch'])) && (isset($_REQUEST['searchkeyword']))
+		&& ($_REQUEST['themefilesearch'] != '') && ($_REQUEST['searchkeyword'] != '') ) {
 			add_filter('all_admin_notices', 'bugbot_theme_file_do_search');
-		}
 	}
-	if ((isset($_REQUEST['corefilesearch'])) && (isset($_REQUEST['searchkeyword']))) {
-		if (($_REQUEST['corefilesearch'] != '') && ($_REQUEST['searchkeyword'] != '')) {
+	if ( (isset($_REQUEST['corefilesearch'])) && (isset($_REQUEST['searchkeyword']))
+		&& ($_REQUEST['corefilesearch'] != '') && ($_REQUEST['searchkeyword'] != '') ) {
 			add_filter('all_admin_notices', 'bugbot_core_file_do_search');
-		}
 	}
 }
 
@@ -310,20 +307,20 @@ if ( (get_option('patsee_do_not_seach_extensions')) && (!get_option('wp_bugbot')
 	add_option('bugbot_sidebar_options',get_option('patsee_sidebar_options')); delete_option('patsee_sidebar_options');
 }
 
-// Save Settings Trigger
-// ---------------------
-if (isset($_REQUEST['bugbot_save_settings'])) {if ($_REQUEST['bugbot_save_settings'] == 'yes') {add_action('init', 'bugbot_save_settings');} }
-
 // Save Settings
 // -------------
+// 1.7.4: changed to use admin_init hook
+add_action('admin_init', 'bugbot_save_settings');
 function bugbot_save_settings() {
 
+	// 1.7.4: moved post value checks to inside function
+	if (!isset($_REQUEST['bugbot_save_settings'])) {return;}
+	if ($_REQUEST['bugbot_save_settings'] != 'yes') {return;}
 	if (!current_user_can('manage_options')) {return;}
-
-	global $vbugbot;
-
 	// 1.7.0: check nonce value
 	check_admin_referer('wp-bugbot');
+
+	global $vbugbot;
 
 	// Update Options
 	// --------------
@@ -368,7 +365,7 @@ function bugbot_save_settings() {
 		$vnewsearches['theme_file_search_case'] = '';
 		$vnewsearches['core_file_search_case'] = '';
 	}
-	if ($vbugbotsearches != $vnewsearches) {update_option('wp_bugbot_searches',$vnewsearches);}
+	if ($vbugbotsearches != $vnewsearches) {update_option('wp_bugbot_searches', $vnewsearches);}
 
 	// Handle User Defined Editable Extensions
 	// ---------------------------------------
@@ -378,7 +375,7 @@ function bugbot_save_settings() {
 	if (count($vextensionstoadd) > 0) {
 		$vi = 0;
 		foreach ($vextensionstoadd as $vanextension) {
-			if (strstr($vanextension,'.')) {$vanextension = str_replace('.','',$vanextension);}
+			if (strstr($vanextension,'.')) {$vanextension = str_replace('.', '', $vanextension);}
 			$vanextension = trim(preg_replace('/[^a-z0-9]/i', '', $vanextension));
 			if ($vanextension != '') {$vextensionstoadd[$vi] = $vanextension;}
 			else {unset($vextensionstoadd[$vi]);}
@@ -500,13 +497,44 @@ function bugbot_options_page() {
 
 	// 1.7.0: added error log search
 	echo "<div id='errorlogsearch' style='padding-left:20px;padding-bottom:30px;'>";
-	// 1.7.1: fix to empty variable to array
-	$verrorlogs = array();
+
+	// 1.7.3: error log header in any case
+	echo "<h3>".__('PHP Error Logs','wp-bugbot')."</h3>";
+
 	$vlognames = array('error.log','php_errors.log');
 	$verrorlog = ini_get('error_log');
 	if ( ($verrorlog) && (!in_array($verrorlog,$vlognames)) ) {$vlognames[] = ini_get('error_log');}
-	$vfiles = bugbot_file_search_list_files(ABSPATH);
 
+	// 1.7.3: filter the log names searched for
+	$vfilterlognames = apply_filters('bugbot_error_log_search',$vlognames);
+	if (is_array($vfilterlognames)) {$vlognames = $vfilterlognames;}
+
+	// 1.7.3: output the log filenames searched for
+	if (count($vlognames) > 0) {
+		$vi = 0;
+		echo __('Searching your current installation for the following filenames','wp-bugbot').':<br>';
+		$vdisplaylogs = implode(', ',$vlognames);
+		echo $vdisplaylogs."...<br>";
+	} else {echo __('Searching for Error Logs has been disabled by filter.','wp-bugbot').'<br>';}
+
+	// 1.7.1: fix to empty variable to array
+	$verrorlogs = array();
+	// 1.7.3: for subdirectory installs, also check for error logs in parent directory
+	if ( (@file_exists(dirname(ABSPATH).'/wp-config.php'))
+	  && (!@file_exists(dirname(ABSPATH).'/wp-settings.php')) ) {
+	  	$vparentfiles = scandir(dirname(ABSPATH));
+	  	foreach ($vparentfiles as $vfile) {
+	  		if ( ($vfile != '.') && ($vfile != '..') ) {
+				foreach ($vlognames as $vlogname) {
+					if (substr($vfile,-(strlen($vlogname)),strlen($vlogname)) == $vlogname) {
+						$verrorlogs[$vfile] = dirname(ABSPATH).'/'.$vfile;
+					}
+				}
+			}
+	  	}
+	}
+	// do the main recursive search for log files
+	$vfiles = bugbot_file_search_list_files(ABSPATH);
 	foreach ($vfiles as $vfile) {
 		foreach ($vlognames as $vlogname) {
 			if (substr($vfile,-(strlen($vlogname)),strlen($vlogname)) == $vlogname) {
@@ -517,8 +545,6 @@ function bugbot_options_page() {
 	// print_r($verrorlogs);
 
 	if (count($verrorlogs) > 0) {
-		echo "<h3>".__('PHP Error Logs','wp-bugbot')."</h3>";
-
 		// 1.7.1: number of log lines to parse
 		echo "<center><table><tr>";
 		echo "<td><b>".__('Process Last x Lines of Error Log','wp-bugbot').":</b></td>";
@@ -532,7 +558,8 @@ function bugbot_options_page() {
 			$vdisplayurl = admin_url('admin-ajax.php').'?action=bugbot_view_error_log&path='.urlencode($vpath).'&lines=';
 			echo "<a href='".$vdisplayurl."' target='errorlogframe' onclick='this.href+=document.getElementById(\"loglines\").value'>".$vdisplay."</a><br>";
 		}
-	}
+	} else {echo __('No Error Logs were found.','wp-bugbot');}
+
 	echo "<div id='errorlogwrap' style='display:none;'><h4>".__('Error Log Contents')."</h4>";
 	echo "<iframe src='javascript:void(0);' name='errorlogframe' id='errorlogframe' width='650px' height='650px'></iframe>";
 	echo "</div>";
@@ -839,7 +866,8 @@ function bugbot_sidebar_plugin_header() {
 		// 1.7.1: added no file editing allowed message
 		if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
 			$message = __('File editing is disabled. Plugin and Theme Search interfaces can be found on the ');
-			$message .= "<a href='/update-core.php'>".__('Core Updates page')."</a>.";
+			// 1.7.4: fix to update URL for dissallowed file editing
+			$message .= "<a href='update-core.php'>".__('Core Updates page')."</a>.";
 			echo "<center><p><div class='message'>";
 			echo "<table width='80%' style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; padding: 0 0.6em; text-align:center;'>";
 			echo "<tr><td><p style='margin:7px;' class='message'>".$message."</p></td></tr></table></div></p></center>";
@@ -1537,310 +1565,315 @@ function bugbot_plugin_file_do_search() {
 
 	global $vbugbotslug, $vbugbotversion, $vbugbotdebug, $vissearchpage; $vissearchpage = true;
 
-	// 1.5.0: changed capability from manage_options
-	if (current_user_can('edit_plugins')) {
+	// 1.5.0: changed capability from manage_options to edit_plugins
+	// 1.7.4: fix for permission check for DISALLOW_FILE_EDIT
+	$vdosearch = false;
+	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
+		if (current_user_can('manage_options')) {$vdosearch = true;}
+	} elseif (current_user_can('edit_plugins')) {$vdosearch = true;}
+	if (!$vdosearch) {return;}
 
-		// set time limit
-		bugbot_set_time_limit();
+	// set time limit
+	bugbot_set_time_limit();
 
-		// get DoNotSearch Extensions
-		// 1.7.0: use function call to get array
-		$dnsarray = bugbot_get_donotsearch_extensions();
+	// get DoNotSearch Extensions
+	// 1.7.0: use function call to get array
+	$dnsarray = bugbot_get_donotsearch_extensions();
 
-		// get Editable Extensions
-		$editableextensions = bugbot_get_editable_extensions();
-		if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
+	// get Editable Extensions
+	$editableextensions = bugbot_get_editable_extensions();
+	if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
 
-		// get Line Snip Length
-		$vsniplinesat = bugbot_get_option('snip_long_lines_at');
-		if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
+	// get Line Snip Length
+	$vsniplinesat = bugbot_get_option('snip_long_lines_at');
+	if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
 
-		// print Wordwrap Styles
-		bugbot_wordwrap_styles();
+	// print Wordwrap Styles
+	bugbot_wordwrap_styles();
 
-		// print show/hide snipped javascript
-		bugbot_snipped_javascript();
+	// print show/hide snipped javascript
+	bugbot_snipped_javascript();
 
-		// get Search Request
-		$plugins = get_plugins();
-		if ( (isset($_REQUEST['searchtype'])) && ($_REQUEST['searchtype'] == 'multiple') ) {$pluginarray = $_REQUEST['multipluginfilesearch'];}
-		else {$pluginarray[0] = $_REQUEST['pluginfilesearch'];}
-		if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
-		if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
-		if ((count($pluginarray) > 1) && (in_array("ALLPLUGINS",$pluginarray))) {$pluginarray = array(); $pluginarray[0] = "ALLPLUGINS";}
-		// if ($vbugbotdebug) {print_r($pluginarray);}
+	// get Search Request
+	$plugins = get_plugins();
+	if ( (isset($_REQUEST['searchtype'])) && ($_REQUEST['searchtype'] == 'multiple') ) {$pluginarray = $_REQUEST['multipluginfilesearch'];}
+	else {$pluginarray[0] = $_REQUEST['pluginfilesearch'];}
+	if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
+	if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
+	if ((count($pluginarray) > 1) && (in_array("ALLPLUGINS",$pluginarray))) {$pluginarray = array(); $pluginarray[0] = "ALLPLUGINS";}
+	// if ($vbugbotdebug) {print_r($pluginarray);}
 
-		// save Search Request
-		global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
-		if (bugbot_get_option('save_selected_plugin') == 'yes') {
-			$plugincsv = implode(',',$pluginarray); $vbugbotsearches['plugin_file_search_plugin'] = $plugincsv;
-		}
-		if (bugbot_get_option('save_last_searched') == 'yes') {$vbugbotsearches['plugin_file_search_keyword'] = $keyword;}
-		if (bugbot_get_option('save_case_sensitive') == 'yes') {$bugbotsearches['plugin_file_search_case'] = $searchcase;}
-		if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches',$vnewsearches);}
+	// save Search Request
+	global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
+	// 1.7.4: fix to save search logic
+	if (bugbot_get_option('save_selected_plugin') == 'yes') {
+		$plugincsv = implode(',',$pluginarray); $vnewsearches['plugin_file_search_plugin'] = $plugincsv;
+	}
+	if (bugbot_get_option('save_last_searched') == 'yes') {$vnewsearches['plugin_file_search_keyword'] = $keyword;}
+	if (bugbot_get_option('save_case_sensitive') == 'yes') {$vnewsearches['plugin_file_search_case'] = $searchcase;}
+	if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches', $vnewsearches); $vbugbotsearches = $vnewsearches;}
 
-		// Get Plugins Editable Files
-		// $editable_plugin_files = array();
-		// foreach ($plugins as $plugin_key=>$a_plugin) {
-		//	if ($plugin == "ALLPLUGINS") {
-		// 		$these_plugin_files = get_plugin_files($plugin_key);
-		//		$editable_plugin_files = array_merge($these_plugin_files,$editable_plugin_files);
-		//	}
-		//	elseif ($plugin_key == $plugin) {
-		//		$plugin_name = $a_plugin['Name'];
-		//		$editable_plugin_files = get_plugin_files($plugin);
-		//	}
-		// }
+	// Get Plugins Editable Files
+	// $editable_plugin_files = array();
+	// foreach ($plugins as $plugin_key=>$a_plugin) {
+	//	if ($plugin == "ALLPLUGINS") {
+	// 		$these_plugin_files = get_plugin_files($plugin_key);
+	//		$editable_plugin_files = array_merge($these_plugin_files,$editable_plugin_files);
+	//	}
+	//	elseif ($plugin_key == $plugin) {
+	//		$plugin_name = $a_plugin['Name'];
+	//		$editable_plugin_files = get_plugin_files($plugin);
+	//	}
+	// }
 
-		$vi = 0;
-		$activeplugins = get_option('active_plugins');
-		foreach ($plugins as $plugin_key => $value) {
-			if (in_array($plugin_key,$activeplugins)) {$activeplugindata[$plugin_key] = $value;}
-			else {$inactiveplugindata[$plugin_key] = $value;}
-			$allplugins[$vi] = $plugin_key; $vi++; // 1.7.0: counter fix
-		}
+	$vi = 0;
+	$activeplugins = get_option('active_plugins');
+	foreach ($plugins as $plugin_key => $value) {
+		if (in_array($plugin_key,$activeplugins)) {$activeplugindata[$plugin_key] = $value;}
+		else {$inactiveplugindata[$plugin_key] = $value;}
+		$allplugins[$vi] = $plugin_key; $vi++; // 1.7.0: counter fix
+	}
 
-		// 1.6.0: fix to pluginarray variable typos
-		// 1.7.0: fix to plugin loop counters
-		$vi = 0; $searchtype = '';
-		if ($pluginarray[0] == "ALLPLUGINS") {
-			// $pluginpath = WP_PLUGIN_DIR."/";
-			// $plugin_files = bugbot_file_search_list_files($pluginpath);
-			$pluginarray = $allplugins;
-			$searchtype = "ALLPLUGINS";
-		} elseif ($pluginarray[0] == "ACTIVEPLUGINS") {
-			foreach ($activeplugindata as $key => $value) {$pluginarray[$vi] = $key; $vi++;}
-			$searchtype = "ACTIVEPLUGINS";
-		} elseif ($pluginarray[0] == "INACTIVEPLUGINS") {
-			foreach ($inactiveplugindata as $key => $value) {$pluginarray[$vi] = $key; $vi++;}
-			$searchtype = "INACTIVEPLUGINS";
-		} elseif ($pluginarray[0] == "UPDATEPLUGINS") {
-			$pluginupdates = get_site_transient('update_plugins'); $vj = 0;
-			foreach ($pluginupdates->response as $pluginupdate => $values) {$updatelist[$vj] = $pluginupdate; $vj++;}
-			foreach ($updatelist as $update) {$pluginarray[$vi] = $update; $vi++;}
-			$searchtype = "UPDATEPLUGINS";
-		}
+	// 1.6.0: fix to pluginarray variable typos
+	// 1.7.0: fix to plugin loop counters
+	$vi = 0; $searchtype = '';
+	if ($pluginarray[0] == "ALLPLUGINS") {
+		// $pluginpath = WP_PLUGIN_DIR."/";
+		// $plugin_files = bugbot_file_search_list_files($pluginpath);
+		$pluginarray = $allplugins;
+		$searchtype = "ALLPLUGINS";
+	} elseif ($pluginarray[0] == "ACTIVEPLUGINS") {
+		foreach ($activeplugindata as $key => $value) {$pluginarray[$vi] = $key; $vi++;}
+		$searchtype = "ACTIVEPLUGINS";
+	} elseif ($pluginarray[0] == "INACTIVEPLUGINS") {
+		foreach ($inactiveplugindata as $key => $value) {$pluginarray[$vi] = $key; $vi++;}
+		$searchtype = "INACTIVEPLUGINS";
+	} elseif ($pluginarray[0] == "UPDATEPLUGINS") {
+		$pluginupdates = get_site_transient('update_plugins'); $vj = 0;
+		foreach ($pluginupdates->response as $pluginupdate => $values) {$updatelist[$vj] = $pluginupdate; $vj++;}
+		foreach ($updatelist as $update) {$pluginarray[$vi] = $update; $vi++;}
+		$searchtype = "UPDATEPLUGINS";
+	}
 
-		$plugin_files = array(); $multiple = false;
-		if (count($pluginarray) > 0) {
-			if (count($pluginarray) > 1) {$multiple = true;}
-			foreach ($pluginarray as $plugin) {
-				$pluginchunks = explode('/',$plugin);
-				$plugindir = $pluginchunks[0];
-				$pluginpath = WP_PLUGIN_DIR.'/'.$plugindir.'/';
-				$these_plugin_files = bugbot_file_search_list_files($pluginpath);
-				$plugin_files = array_merge($these_plugin_files,$plugin_files);
-			}
-		}
-
-		// get Plugin Names for display
-		$plugin_name = '';
-		foreach ($plugins as $plugin_key => $a_plugin) {
-			foreach ($pluginarray as $plugin) {
-				if ($plugin_key == $plugin) {
-					if ($plugin_name == '') {$plugin_name = $a_plugin['Name'];}
-					else {$plugin_name .= ", ".$a_plugin['Name'];}
-				}
-			}
-		}
-
-		// if ($vbugbotdebug) {print_r($pluginarray); echo "***".$searchtype."***";}
-
-		echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
-
-		// Admin Notices Boxer
-		if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
-
-		// Search Interface Header
-		// -----------------------
-		global $vbugbotversion;
-		$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
-		echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
-		echo "<td align='center'><h2>WP BugBot <i>v".$vbugbotversion."</i><br><br>".__('Plugin File Search','wp-bugbot')." </h2>";
-		echo "</td></tr></table></center>";
-
-		// Plugin Search Interface
-		// -----------------------
-		echo "<br><center>".bugbot_plugin_file_search_ui()."</center><br><br>";
-
-		if ($keyword == '') {echo __('Error: No Keyword Specified!','bioship'); return;}
-
-		// Search Message Header
-		// ---------------------
-		echo "<center><p><div id='search_message_box' style='display:inline-block;'>";
-		echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
-		echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
-		if ($searchtype == "ALLPLUGINS") {
-			echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from ALL Plugins for','wp-bugbot')." ";
-		} elseif ($searchtype == "ACTIVEPLUGINS") {
-			echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Active Plugins for','wp-bugbot')." ";
-		} elseif ($searchtype == "INACTIVEPLUGINS") {
-			echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Inactive Plugins for','wp-bugbot')." ";
-		} elseif ($searchtype == "UPDATEPLUGINS") {
-			echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Update Available Plugins for','wp-bugbot')." ";
-		} else {
-			if ($multiple) {echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files of the plugins','wp-bugbot').": '".$plugin_name."' ".__('for','wp-bugbot')." ";}
-			else {echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files of the','wp-bugbot')." '".$plugin_name."' ".__('plugin for','wp-bugbot')." ";}
-		}
-		echo "<code>".htmlspecialchars($keyword)."</code>";
-		if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
-		else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
-		echo "</font></div></td></tr></table></div></p></center>";
-
-		// print_r($plugin_files);
-		// print_r($editable_plugin_files);
-
-		// Load Search Sidebar
-		// ----------------
-		bugbot_search_sidebar();
-
-		// Search Results
-		// --------------
-		echo "<div id='filesearchresults' style='width:100%;'>";
-
-		$vsnipcount = 0;
+	$plugin_files = array(); $multiple = false;
+	if (count($pluginarray) > 0) {
+		if (count($pluginarray) > 1) {$multiple = true;}
 		foreach ($pluginarray as $plugin) {
-
 			$pluginchunks = explode('/',$plugin);
 			$plugindir = $pluginchunks[0];
-			$pluginpath = WP_PLUGIN_DIR."/".$plugindir."/";
-			$plugin_files = bugbot_file_search_list_files($pluginpath);
+			$pluginpath = WP_PLUGIN_DIR.'/'.$plugindir.'/';
+			$these_plugin_files = bugbot_file_search_list_files($pluginpath);
+			$plugin_files = array_merge($these_plugin_files,$plugin_files);
+		}
+	}
 
-			if (count($plugin_files) > 0) {
-				$vfound = false;
-				if (count($pluginarray) > 1) {
-					foreach ($plugins as $plugin_key=>$a_plugin) {
-						if ($plugin_key == $plugin) {$plugin_name = $a_plugin['Name'];}
-					}
-					echo "<center><h3>".$plugin_name."</h3></center>";
-				}
-
-				$i = 0; // strip do not search extensions
-				if (count($dnsarray) > 0) {
-					foreach ($plugin_files as $plugin_file) {
-						foreach ($dnsarray as $dns) {
-							$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
-							if (substr($plugin_file,$len) == $dns) {unset($plugin_files[$i]);}
-						}
-						$i++;
-					}
-				}
-
-				foreach ($plugin_files as $plugin_file) {
-
-					if ($plugin == "ALLPLUGINS") {$urlfile = $plugin_file;} else {$urlfile = $plugindir."/".$plugin_file;}
-					$real_file = $pluginpath.$plugin_file;
-
-					// read file
-					$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
-
-					// check extension
-					$pathinfo = pathinfo($real_file);
-					if (isset($pathinfo['extension'])) {$extension = $pathinfo['extension'];} else {$extension = '';}
-
-					// Loop Occurrences
-					$occurences = array();
-					$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
-					if (count($occurences) > 0) {
-
-						$vfound = true;
-
-						// Line Header
-						echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
-
-						// File Header
-						echo '<div style="display:inline-block;text-align:center;min-width:600px;"><b>File: ';
-
-						if ($vbugbotdebug) {echo "<!-- *".$extension."*"; print_r($editableextensions); echo " -->";}
-
-						// 1.7.1: allow for file viewing if editor is disabled
-						if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
-							echo '<a href="update-core.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes" style="text-decoration:none;">';
-							echo $plugin_file.'</a></b>';
-							echo "<br>(".__('Link to file view only - file editing is disabled.','wp-bugbot').")";
-						} elseif (in_array($extension,$editableextensions)) {
-							echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&searchkeyword='.urlencode($keyword).'" style="text-decoration:none;">';
-							echo $plugin_file.'</a></b>';
-						} else {
-							echo '<a href="plugin-editor.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes" style="text-decoration:none;">';
-							echo $plugin_file.'</a></b>';
-							echo "<br>(".__('Plugin file not editable - change your editable extensions from the sidebar.','wp-bugbot').")";
-						}
-						echo '</div>';
-
-						foreach ($occurences as $occurence) {
-
-							// Snip Long Lines
-							if ($vsniplinesat) {
-								if (strlen($occurence['value']) > $vsniplinesat) {
-									$vthisoccurence = $occurence['value'];
-									$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
-									$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
-									$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
-									$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
-									$vsnipcount++;
-								} else {$vsnipped = "";}
-							}
-
-							echo "<div style='text-align:left;vertical-align:top;'>";
-
-							echo "<table><tr><td align='center' style='vertical-align:top;width:40px;min-width:40px;'>";
-							// 1.7.1: allow for file viewing if editor is disabled
-							if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
-								echo '<a href="update-core.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';
-							} elseif (in_array($extension,$editableextensions)) {
-								if ($plugin == "ALLPLUGINS") {echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&plugin='.urlencode($plugin).'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-								else {echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-							} else {echo '<a href="plugin-editor.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';}
-							echo "</td>";
-
-							// Output Code Block
-							echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
-
-							$block = $occurence['value'];
-							$firstblock = '';
-
-							if (stristr($block,$keyword)) {
-								$position = stripos($block,$keyword);
-								if ($position > 0) {
-									$chunks = str_split($block,$position);
-									$firstblock = $chunks[0];
-									unset($chunks[0]);
-									$remainder = implode('',$chunks);
-								}
-								else {$remainder = $occurence['value'];}
-
-								$chunks = str_split($remainder,strlen($keyword));
-								$kdisplay = $chunks[0];
-								unset($chunks[0]);
-								$lastblock = implode('',$chunks);
-
-								$block = htmlspecialchars($firstblock);
-								$block .= "<span style='background-color:#F0F077'>";
-								$block .= htmlspecialchars($kdisplay);
-								$block .= "</span>";
-								$block .= htmlspecialchars($lastblock);
-							}
-							else {$block = htmlspecialchars($occurence['value']);}
-
-							$displayblock = bugbot_html_wrap($block,80,'<br>');
-							echo $displayblock;
-
-							echo "</code>".$vsnipped."</span></td></tr></table>";
-
-							echo "</div>";
-						}
-					}
-				}
-				if (!$vfound) {echo __('No results found for this plugin.','wp-bugbot');}
+	// get Plugin Names for display
+	$plugin_name = '';
+	foreach ($plugins as $plugin_key => $a_plugin) {
+		foreach ($pluginarray as $plugin) {
+			if ($plugin_key == $plugin) {
+				if ($plugin_name == '') {$plugin_name = $a_plugin['Name'];}
+				else {$plugin_name .= ", ".$a_plugin['Name'];}
 			}
 		}
-		echo "</div>";
-
-		echo "</div>";
-
-		exit;
 	}
+
+	// if ($vbugbotdebug) {print_r($pluginarray); echo "***".$searchtype."***";}
+
+	echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
+
+	// Admin Notices Boxer
+	if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
+
+	// Search Interface Header
+	// -----------------------
+	global $vbugbotversion;
+	$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
+	echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
+	echo "<td align='center'><h2>WP BugBot <i>v".$vbugbotversion."</i><br><br>".__('Plugin File Search','wp-bugbot')." </h2>";
+	echo "</td></tr></table></center>";
+
+	// Plugin Search Interface
+	// -----------------------
+	echo "<br><center>".bugbot_plugin_file_search_ui()."</center><br><br>";
+
+	if ($keyword == '') {echo __('Error: No Keyword Specified!','bioship'); return;}
+
+	// Search Message Header
+	// ---------------------
+	echo "<center><p><div id='search_message_box' style='display:inline-block;'>";
+	echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
+	echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
+	if ($searchtype == "ALLPLUGINS") {
+		echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from ALL Plugins for','wp-bugbot')." ";
+	} elseif ($searchtype == "ACTIVEPLUGINS") {
+		echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Active Plugins for','wp-bugbot')." ";
+	} elseif ($searchtype == "INACTIVEPLUGINS") {
+		echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Inactive Plugins for','wp-bugbot')." ";
+	} elseif ($searchtype == "UPDATEPLUGINS") {
+		echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files from Update Available Plugins for','wp-bugbot')." ";
+	} else {
+		if ($multiple) {echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files of the plugins','wp-bugbot').": '".$plugin_name."' ".__('for','wp-bugbot')." ";}
+		else {echo __('Searched','wp-bugbot')." ".count($plugin_files)." ".__('files of the','wp-bugbot')." '".$plugin_name."' ".__('plugin for','wp-bugbot')." ";}
+	}
+	echo "<code>".htmlspecialchars($keyword)."</code>";
+	if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
+	else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
+	echo "</font></div></td></tr></table></div></p></center>";
+
+	// print_r($plugin_files);
+	// print_r($editable_plugin_files);
+
+	// Load Search Sidebar
+	// ----------------
+	bugbot_search_sidebar();
+
+	// Search Results
+	// --------------
+	echo "<div id='filesearchresults' style='width:100%;'>";
+
+	$vsnipcount = 0;
+	foreach ($pluginarray as $plugin) {
+
+		$pluginchunks = explode('/',$plugin);
+		$plugindir = $pluginchunks[0];
+		$pluginpath = WP_PLUGIN_DIR."/".$plugindir."/";
+		$plugin_files = bugbot_file_search_list_files($pluginpath);
+
+		if (count($plugin_files) > 0) {
+			$vfound = false;
+			if (count($pluginarray) > 1) {
+				foreach ($plugins as $plugin_key=>$a_plugin) {
+					if ($plugin_key == $plugin) {$plugin_name = $a_plugin['Name'];}
+				}
+				echo "<center><h3>".$plugin_name."</h3></center>";
+			}
+
+			$i = 0; // strip do not search extensions
+			if (count($dnsarray) > 0) {
+				foreach ($plugin_files as $plugin_file) {
+					foreach ($dnsarray as $dns) {
+						$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
+						if (substr($plugin_file,$len) == $dns) {unset($plugin_files[$i]);}
+					}
+					$i++;
+				}
+			}
+
+			foreach ($plugin_files as $plugin_file) {
+
+				if ($plugin == "ALLPLUGINS") {$urlfile = $plugin_file;} else {$urlfile = $plugindir."/".$plugin_file;}
+				$real_file = $pluginpath.$plugin_file;
+
+				// read file
+				$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
+
+				// check extension
+				$pathinfo = pathinfo($real_file);
+				if (isset($pathinfo['extension'])) {$extension = $pathinfo['extension'];} else {$extension = '';}
+
+				// Loop Occurrences
+				$occurences = array();
+				$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
+				if (count($occurences) > 0) {
+
+					$vfound = true;
+
+					// Line Header
+					echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
+
+					// File Header
+					echo '<div style="display:inline-block;text-align:center;min-width:600px;"><b>File: ';
+
+					if ($vbugbotdebug) {echo "<!-- *".$extension."*"; print_r($editableextensions); echo " -->";}
+
+					// 1.7.1: allow for file viewing if editor is disabled
+					if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
+						echo '<a href="update-core.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes" style="text-decoration:none;">';
+						echo $plugin_file.'</a></b>';
+						echo "<br>(".__('Link to file view only - file editing is disabled.','wp-bugbot').")";
+					} elseif (in_array($extension,$editableextensions)) {
+						echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&searchkeyword='.urlencode($keyword).'" style="text-decoration:none;">';
+						echo $plugin_file.'</a></b>';
+					} else {
+						echo '<a href="plugin-editor.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes" style="text-decoration:none;">';
+						echo $plugin_file.'</a></b>';
+						echo "<br>(".__('Plugin file not editable - change your editable extensions from the sidebar.','wp-bugbot').")";
+					}
+					echo '</div>';
+
+					foreach ($occurences as $occurence) {
+
+						// Snip Long Lines
+						if ($vsniplinesat) {
+							if (strlen($occurence['value']) > $vsniplinesat) {
+								$vthisoccurence = $occurence['value'];
+								$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
+								$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
+								$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
+								$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
+								$vsnipcount++;
+							} else {$vsnipped = "";}
+						}
+
+						echo "<div style='text-align:left;vertical-align:top;'>";
+
+						echo "<table><tr><td align='center' style='vertical-align:top;width:40px;min-width:40px;'>";
+						// 1.7.1: allow for file viewing if editor is disabled
+						if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
+							echo '<a href="update-core.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';
+						} elseif (in_array($extension,$editableextensions)) {
+							if ($plugin == "ALLPLUGINS") {echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&plugin='.urlencode($plugin).'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+							else {echo '<a href="plugin-editor.php?file='.urlencode($urlfile).'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+						} else {echo '<a href="plugin-editor.php?showfilecontents='.urlencode($urlfile).'&pluginfile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';}
+						echo "</td>";
+
+						// Output Code Block
+						echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
+
+						$block = $occurence['value'];
+						$firstblock = '';
+
+						if (stristr($block,$keyword)) {
+							$position = stripos($block,$keyword);
+							if ($position > 0) {
+								$chunks = str_split($block,$position);
+								$firstblock = $chunks[0];
+								unset($chunks[0]);
+								$remainder = implode('',$chunks);
+							}
+							else {$remainder = $occurence['value'];}
+
+							$chunks = str_split($remainder,strlen($keyword));
+							$kdisplay = $chunks[0];
+							unset($chunks[0]);
+							$lastblock = implode('',$chunks);
+
+							$block = htmlspecialchars($firstblock);
+							$block .= "<span style='background-color:#F0F077'>";
+							$block .= htmlspecialchars($kdisplay);
+							$block .= "</span>";
+							$block .= htmlspecialchars($lastblock);
+						}
+						else {$block = htmlspecialchars($occurence['value']);}
+
+						$displayblock = bugbot_html_wrap($block,80,'<br>');
+						echo $displayblock;
+
+						echo "</code>".$vsnipped."</span></td></tr></table>";
+
+						echo "</div>";
+					}
+				}
+			}
+			if (!$vfound) {echo __('No results found for this plugin.','wp-bugbot');}
+		}
+	}
+	echo "</div>";
+
+	echo "</div>";
+
+	exit;
 }
 
 
@@ -1906,7 +1939,7 @@ function bugbot_plugin_file_search_ui() {
 	// 1.7.1: different action if editing is not allowed
 	$formaction = 'plugin-editor.php';
 	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {$formaction = 'update-core.php';}
-	echo '<form action="'.$formaction.'" method="post" onSubmit="return checkforkeyword();">';
+	echo '<form action="'.$formaction.'" method="post" onSubmit="return checkpluginkeyword();">';
 
 	// 1.5.0: fixed for repeat multiple search submissions
 	if (count($lastsearchedplugins) > 1) {$searchtype = 'multiple';} else {$searchtype = 'single';}
@@ -1917,20 +1950,27 @@ function bugbot_plugin_file_search_ui() {
 		echo '<td width="48" style="vertical-align:top;"><img src="'.$viconurl.'" width="48" height="48"></td>';
 	}
 	echo '<td width="220" style="vertical-align:top;">';
-	echo '<strong><label for="keyword" style="font-size:10.5pt;"><a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot '.__('Keyword','wp-bugbot').' '.__('Search','wp-bugbot').'</a>:</label></strong> ';
+	echo '<strong><label for="keyword" style="font-size:10.5pt;"><a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot ';
+	// 1.7.4: change label prefix if using multiple search page
+	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {echo __('Plugin','wp-bugbot');}
+	else {echo __('Keyword','wp-bugbot');}
+	echo ' '.__('Search','wp-bugbot').'</a>:</label></strong> ';
+
 	echo '<div style="float:right;font-size:8pt;"><input type="checkbox" name="searchcase" value="sensitive"';
 	if ($lastsearchedcase == 'sensitive') {echo ' checked';}
 	echo '> '.__('Match Case','wp-bugbot').'?</div><br>';
+
+	// 1.7.4: use separate keyword element ID for javascript check (pluginkeyword)
 	if ((strstr($lastsearchedkeyword,"'")) && (strstr($lastsearchedkeyword,'"'))) {
 		// $lastsearchedkeyword = str_replace('"','\"',$lastsearchedkeyword);
 		$lastsearchedkeyword = htmlspecialchars($lastsearchedkeyword,ENT_QUOTES);
-		echo '<input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35"></td>';
+		echo '<input type="text" id="pluginkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35"></td>';
 	}
 	elseif (strstr($lastsearchedkeyword,"'")) {
-		echo '<input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35"></td>';
+		echo '<input type="text" id="pluginkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35"></td>';
 	}
 	else {
-		echo "<input type='text' id='searchkeyword' name='searchkeyword' value='".$lastsearchedkeyword."' size='35'></td>";
+		echo "<input type='text' id='pluginkeyword' name='searchkeyword' value='".$lastsearchedkeyword."' size='35'></td>";
 	}
 	echo '</td><td width="20"></td>';
 	echo '<td width="120" style="vertical-align:top;"><strong><label for="pluginfilesearch" style="float:right;">'.__('Plugin','wp-bugbot').'<span id="multisup" style="display:none;">s</span> '.__('to Search','wp-bugbot').':</label></strong><br>';
@@ -2045,10 +2085,11 @@ function bugbot_plugin_file_search_ui() {
 	echo '<input type="submit" class="button-primary" value="'.__('Search','wp-bugbot').'">';
 	echo '</td></tr></table></form></div>';
 
+	// 1.7.4: use separate keyword element ID for javascript check
 	echo "<script language='javascript' type='text/javascript'>
-	function checkforkeyword() {
-		if (document.getElementById('searchkeyword').value == '') {
-			alert('".__('Please enter a keyword to search for.','wp-bugbot')."'); return false;
+	function checkpluginkeyword() {
+		if (document.getElementById('pluginkeyword').value == '') {
+			alert('".__('Please enter a keyword to search plugin(s) for.','wp-bugbot')."'); return false;
 		}
 	}
 	</script>";
@@ -2066,264 +2107,269 @@ function bugbot_theme_file_do_search() {
 
 	global $vbugbotslug, $vbugbotdebug, $vbugbotversion, $vissearchpage; $vissearchpage = true;
 
-	// 1.5.0: changed capability from manage_options
-	if (current_user_can('edit_themes')) {
+	// 1.5.0: changed capability from manage_options to edit_themes
+	// 1.7.4: fix for permission check for DISALLOW_FILE_EDIT
+	$vdosearch = false;
+	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
+		if (current_user_can('manage_options')) {$vdosearch = true;}
+	} elseif (current_user_can('edit_themes')) {$vdosearch = true;}
+	if (!$vdosearch) {return;}
 
-		// set time limit
-		bugbot_set_time_limit();
+	// set time limit
+	bugbot_set_time_limit();
 
-		// get DoNotSearch Extensions
-		// 1.7.0: use function call to get array
-		$dnsarray = bugbot_get_donotsearch_extensions();
+	// get DoNotSearch Extensions
+	// 1.7.0: use function call to get array
+	$dnsarray = bugbot_get_donotsearch_extensions();
 
-		// get Editable Extensions
-		$editableextensions = bugbot_get_editable_extensions();
-		if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
+	// get Editable Extensions
+	$editableextensions = bugbot_get_editable_extensions();
+	if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
 
-		// get Line Snip Length
-		$vsniplinesat = bugbot_get_option('snip_long_lines_at');
-		if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
+	// get Line Snip Length
+	$vsniplinesat = bugbot_get_option('snip_long_lines_at');
+	if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
 
-		// print Wordwrap Styles
-		bugbot_wordwrap_styles();
+	// print Wordwrap Styles
+	bugbot_wordwrap_styles();
 
-		// print show/hide snipped javascript
-		bugbot_snipped_javascript();
+	// print show/hide snipped javascript
+	bugbot_snipped_javascript();
 
-		// get Search Request
-		$themes = wp_get_themes();
-		$themesearch = $_REQUEST['themefilesearch'];
-		$theme = wp_get_theme($themesearch);
+	// get Search Request
+	$themes = wp_get_themes();
+	$themesearch = $_REQUEST['themefilesearch'];
+	$theme = wp_get_theme($themesearch);
 
-		if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
-		if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
+	if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
+	if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
 
-		if ($vbugbotdebug == '1') {
-			echo "<!-- Theme Search: ".$themesearch." - Keyword: ".$keyword." - Case: ";
-			if ($searchcase == 'sensitive') {echo $searchcase;} else {echo "insensitive";}
-			echo " --><!-- Theme Info Dump: "; print_r($theme);	echo " -->";
+	if ($vbugbotdebug == '1') {
+		echo "<!-- Theme Search: ".$themesearch." - Keyword: ".$keyword." - Case: ";
+		if ($searchcase == 'sensitive') {echo $searchcase;} else {echo "insensitive";}
+		echo " --><!-- Theme Info Dump: "; print_r($theme);	echo " -->";
+	}
+
+	// save Search Request
+	global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
+	// 1.7.4: fix to search save logic
+	if (bugbot_get_option('save_selected_theme') == 'yes') {$vnewsearches['theme_file_search_theme'] = $themesearch;}
+	if (bugbot_get_option('save_last_searched') == 'yes') {$vnewsearches['theme_file_search_keyword'] = $keyword;}
+	if (bugbot_get_option('save_case_sensitive') == 'yes') {$vnewsearches['theme_file_search_case'] = $searchcase;}
+	if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches', $vnewsearches); $vbugbotsearches = $vnewsearches;}
+
+	// Get Themes Editable Files
+	// ---------------------
+	// $theme_files = array();
+	// foreach ($themes as $a_theme) {
+	//	if ($theme == "ALLTHEMES") {
+	// 		$these_theme_files = get_theme_files($theme->stylesheet);
+	//		$editable_theme_files = array_merge($these_theme_files,$editable_theme_files);
+	//	}
+	//	elseif ($theme->Name == $a_theme->Name) {
+	//		$theme_name = $a_theme['Name'];
+	//		$editable_theme_files = get_theme_files($theme->stylesheet);
+	//	}
+	// }
+
+	// Get All the Themes Files
+	if ($themesearch == "ALLTHEMES") {
+		$themepath = get_theme_root()."/";
+		$theme_files = bugbot_file_search_list_files($themepath);
+	}
+	else {
+		$themedir = $theme->stylesheet;
+		$themepath = get_theme_root($themedir)."/".$themedir."/";
+		$theme_files = bugbot_file_search_list_files($themepath);
+	}
+
+	// print_r($theme_files);
+	// echo $themepath;
+	// echo "<br>";
+	// echo $themedir;
+
+	$i = 0; // strip do not search extensions
+	foreach ($theme_files as $theme_file) {
+		foreach ($dnsarray as $dns) {
+			$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
+			if (substr($theme_file,$len) == $dns) {unset($theme_files[$i]);}
 		}
+		$i++;
+	}
 
-		// save Search Request
-		global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
-		if (bugbot_get_option('save_selected_theme') == 'yes') {$vbugbotsearches['theme_file_search_theme'] = $themesearch;}
-		if (bugbot_get_option('save_last_searched') == 'yes') {$vbugbotsearches['theme_file_search_keyword'] = $keyword;}
-		if (bugbot_get_option('save_case_sensitive') == 'yes') {$bugbotsearches['theme_file_search_case'] = $searchcase;}
-		if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches',$vnewsearches);}
+	echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
 
-		// Get Themes Editable Files
-		// ---------------------
-		// $theme_files = array();
-		// foreach ($themes as $a_theme) {
-		//	if ($theme == "ALLTHEMES") {
-		// 		$these_theme_files = get_theme_files($theme->stylesheet);
-		//		$editable_theme_files = array_merge($these_theme_files,$editable_theme_files);
-		//	}
-		//	elseif ($theme->Name == $a_theme->Name) {
-		//		$theme_name = $a_theme['Name'];
-		//		$editable_theme_files = get_theme_files($theme->stylesheet);
-		//	}
-		// }
+	// Admin Notices Boxer
+	if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
 
-		// Get All the Themes Files
+	// Search Interface Header
+	// -----------------------
+	$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
+	echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
+	echo '<td align="center"><h2>WP BugBot <i>v'.$vbugbotversion.'</i><br><br>'.__('Theme File Search','wp-bugbot').' </h2></td>';
+	echo '</tr></table></center>';
+
+	// Theme Search Interface
+	// ----------------------
+	echo "<br><center>".bugbot_theme_file_search_ui()."</center><br><br>";
+
+	if ($keyword == '') {echo __('Error: No Keyword Specified!','wp-bugbot'); return;}
+
+	// Search Result Header
+	// --------------------
+	echo "<center><p><div id='search_message_box' style='display:inline-block;'>";
+	echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
+	echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
+	if ($themesearch == "ALLTHEMES") {
+		echo __('Searched','wp-bugbot')." ".count($theme_files)." ".__('files from ALL Themes for','wp-bugbot')." ";
+	} else {
+		echo __('Searched','wp-bugbot')." ".count($theme_files)." ".__('files of the','wp-bugbot')." '".$theme->Name."' ".__('theme for','wp-bugbot')." ";
+	}
+	echo "<code>".htmlspecialchars($keyword)."</code>";
+	if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
+	else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
+	echo "</font></div></td></tr></table></div></p></center>";
+
+	// Load Search Sidebar
+	// -------------------
+	bugbot_search_sidebar();
+
+	// print_r($theme_files);
+	$themeref = "";
+
+	$vsnipcount = 0;
+	echo "<div id='filesearchresults' style='width:100%;'>";
+	foreach ($theme_files as $theme_file) {
+
+		$vfound = false;
+
 		if ($themesearch == "ALLTHEMES") {
-			$themepath = get_theme_root()."/";
-			$theme_files = bugbot_file_search_list_files($themepath);
-		}
-		else {
-			$themedir = $theme->stylesheet;
-			$themepath = get_theme_root($themedir)."/".$themedir."/";
-			$theme_files = bugbot_file_search_list_files($themepath);
-		}
-
-		// print_r($theme_files);
-		// echo $themepath;
-		// echo "<br>";
-		// echo $themedir;
-
-		$i = 0; // strip do not search extensions
-		foreach ($theme_files as $theme_file) {
-			foreach ($dnsarray as $dns) {
-				$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
-				if (substr($theme_file,$len) == $dns) {unset($theme_files[$i]);}
+			$oldthemeref = $themeref;
+			$pos = stripos($theme_file,"/");
+			if ($pos > 0) {
+				$chunks = str_split($theme_file,$pos);
+				$themeref = $chunks[0];
+				unset($chunks[0]);
+				$theme_file = implode("",$chunks);
 			}
-			$i++;
-		}
+			$slashcheck = substr($theme_file,0,1);
+			if ($slashcheck == "/") {$theme_file = substr($theme_file,1,(strlen($theme_file)-1));}
+			// $pos = stripos($theme_file,"/");
+			// if ($pos == '0') {$theme_file = substr($theme_file,1,(strlen($theme_file)-1));}
+			$real_file = $themepath.$themeref."/".$theme_file;
+			if ($oldthemeref != $themeref) {echo "<br><h3>".$themeref."</h3>";}
+		} else {$real_file = $themepath.$theme_file;}
 
-		echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
+		if ($vbugbotdebug) {echo "<!-- ".$themeref." - ".$real_file." - ".$themepath." - ".$theme_file." -->";}
 
-		// Admin Notices Boxer
-		if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
+		// check extension
+		$pathinfo = pathinfo($real_file);
+		if (isset($pathinfo['extension'])) {$extension = $pathinfo['extension'];} else {$extension = '';}
 
-		// Search Interface Header
-		// -----------------------
-		$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
-		echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
-		echo '<td align="center"><h2>WP BugBot <i>v'.$vbugbotversion.'</i><br><br>'.__('Theme File Search','wp-bugbot').' </h2></td>';
-		echo '</tr></table></center>';
+		// Read File
+		$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
 
-		// Theme Search Interface
-		// ----------------------
-		echo "<br><center>".bugbot_theme_file_search_ui()."</center><br><br>";
+		// Loop Occurrences
+		$occurences = array();
+		$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
+		if (count($occurences) > 0) {
 
-		if ($keyword == '') {echo __('Error: No Keyword Specified!','wp-bugbot'); return;}
+			$vfound = true;
 
-		// Search Result Header
-		// --------------------
-		echo "<center><p><div id='search_message_box' style='display:inline-block;'>";
-		echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
-		echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
-		if ($themesearch == "ALLTHEMES") {
-			echo __('Searched','wp-bugbot')." ".count($theme_files)." ".__('files from ALL Themes for','wp-bugbot')." ";
-		} else {
-			echo __('Searched','wp-bugbot')." ".count($theme_files)." ".__('files of the','wp-bugbot')." '".$theme->Name."' ".__('theme for','wp-bugbot')." ";
-		}
-		echo "<code>".htmlspecialchars($keyword)."</code>";
-		if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
-		else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
-		echo "</font></div></td></tr></table></div></p></center>";
+			// Line Header
+			echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
 
-		// Load Search Sidebar
-		// -------------------
-		bugbot_search_sidebar();
+			// File Header
+			echo '<div style="display:inline-block;text-align:center;min-width:600px;">';
 
-		// print_r($theme_files);
-		$themeref = "";
+			echo '<b>File: ';
 
-		$vsnipcount = 0;
-		echo "<div id='filesearchresults' style='width:100%;'>";
-		foreach ($theme_files as $theme_file) {
+			// 1.7.1: allow for file viewing if editor is disabled
+			if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
+				echo '<a href="update-core.php?showfilecontents='.urlencode($theme_file).'&themefile=yes" style="text-decoration:none;">';
+				echo $theme_file.'</a></b>';
+				echo "<br>(".__('Link to file view only - file editing is disabled.','wp-bugbot').")";
+			} elseif (in_array($extension,$editableextensions)) {
+				if ($themesearch != "ALLTHEMES") {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$theme->stylesheet.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';}
+				else {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$themeref.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';}
+				echo $theme_file.'</a></b>';
+			} else {
+				echo '<a href="theme-editor.php?showfilecontents='.urlencode($theme_file).'&themefile=yes" style="text-decoration:none;">';
+				echo $theme_file.'</a></b>';
+				echo "<br>(".__('').")";
+			}
 
-			$vfound = false;
 
-			if ($themesearch == "ALLTHEMES") {
-				$oldthemeref = $themeref;
-				$pos = stripos($theme_file,"/");
-				if ($pos > 0) {
-					$chunks = str_split($theme_file,$pos);
-					$themeref = $chunks[0];
-					unset($chunks[0]);
-					$theme_file = implode("",$chunks);
+			if (!in_array($extension,$editableextensions)) {echo "<br>(".__('Theme file not editable - try changing your editable extensions from the sidebar.','wp-bugbot').")";}
+			echo '</div>';
+
+			foreach ($occurences as $occurence) {
+
+				// Snip Long Lines
+				// ---------------
+				if ($vsniplinesat) {
+					if (strlen($occurence['value']) > $vsniplinesat) {
+						$vthisoccurence = $occurence['value'];
+						$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
+						$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
+						$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
+						$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
+						$vsnipcount++;
+					} else {$vsnipped = "";}
 				}
-				$slashcheck = substr($theme_file,0,1);
-				if ($slashcheck == "/") {$theme_file = substr($theme_file,1,(strlen($theme_file)-1));}
-				// $pos = stripos($theme_file,"/");
-				// if ($pos == '0') {$theme_file = substr($theme_file,1,(strlen($theme_file)-1));}
-				$real_file = $themepath.$themeref."/".$theme_file;
-				if ($oldthemeref != $themeref) {echo "<br><h3>".$themeref."</h3>";}
-			} else {$real_file = $themepath.$theme_file;}
 
-			if ($vbugbotdebug) {echo "<!-- ".$themeref." - ".$real_file." - ".$themepath." - ".$theme_file." -->";}
+				echo "<div style='text-align:left;vertical-align:top;'>";
 
-			// check extension
-			$pathinfo = pathinfo($real_file);
-			if (isset($pathinfo['extension'])) {$extension = $pathinfo['extension'];} else {$extension = '';}
-
-			// Read File
-			$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
-
-			// Loop Occurrences
-			$occurences = array();
-			$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
-			if (count($occurences) > 0) {
-
-				$vfound = true;
-
-				// Line Header
-				echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
-
-				// File Header
-				echo '<div style="display:inline-block;text-align:center;min-width:600px;">';
-
-				echo '<b>File: ';
-
+				// Occurence Line Link
+				echo "<table><tr><td style='text-align:center;vertical-align:top;width:40px;min-width:40px;'>";
 				// 1.7.1: allow for file viewing if editor is disabled
 				if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
-					echo '<a href="update-core.php?showfilecontents='.urlencode($theme_file).'&themefile=yes" style="text-decoration:none;">';
-					echo $theme_file.'</a></b>';
-					echo "<br>(".__('Link to file view only - file editing is disabled.','wp-bugbot').")";
+					echo '<a href="update-core.php?showfilecontents='.urlencode($theme_file).'&themefile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';
 				} elseif (in_array($extension,$editableextensions)) {
-					if ($themesearch != "ALLTHEMES") {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$theme->stylesheet.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';}
-					else {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$themeref.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';}
-					echo $theme_file.'</a></b>';
-				} else {
-					echo '<a href="theme-editor.php?showfilecontents='.urlencode($theme_file).'&themefile=yes" style="text-decoration:none;">';
-					echo $theme_file.'</a></b>';
-					echo "<br>(".__('').")";
-				}
+					if ($themesearch != "ALLTHEMES") {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$theme->stylesheet.'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+					else {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$themeref.'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+				} else {echo '<a href="theme-editor.php?showfilecontents='.urlencode($theme_file).'&themefile=yes&scrolltoline='.$occurence['line'].'">';}
+				echo "</td>";
 
-
-				if (!in_array($extension,$editableextensions)) {echo "<br>(".__('Theme file not editable - try changing your editable extensions from the sidebar.','wp-bugbot').")";}
-				echo '</div>';
-
-				foreach ($occurences as $occurence) {
-
-					// Snip Long Lines
-					// ---------------
-					if ($vsniplinesat) {
-						if (strlen($occurence['value']) > $vsniplinesat) {
-							$vthisoccurence = $occurence['value'];
-							$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
-							$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
-							$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
-							$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
-							$vsnipcount++;
-						} else {$vsnipped = "";}
-					}
-
-					echo "<div style='text-align:left;vertical-align:top;'>";
-
-					// Occurence Line Link
-					echo "<table><tr><td style='text-align:center;vertical-align:top;width:40px;min-width:40px;'>";
-					// 1.7.1: allow for file viewing if editor is disabled
-					if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {
-						echo '<a href="update-core.php?showfilecontents='.urlencode($theme_file).'&themefile=yes&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>';
-					} elseif (in_array($extension,$editableextensions)) {
-						if ($themesearch != "ALLTHEMES") {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$theme->stylesheet.'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-						else {echo '<a href="theme-editor.php?file='.urlencode($theme_file).'&theme='.$themeref.'&searchkeyword='.urlencode($keyword).'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-					} else {echo '<a href="theme-editor.php?showfilecontents='.urlencode($theme_file).'&themefile=yes&scrolltoline='.$occurence['line'].'">';}
-					echo "</td>";
-
-					// Output Code Block
-					echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
-					if (stristr($occurence['value'],$keyword)) {
-						$position = stripos($occurence['value'],$keyword);
-						if ($position > 0) {
-							$chunks = str_split($occurence['value'],$position);
-							$firstblock = $chunks[0];
-							unset($chunks[0]);
-							$remainder = implode('',$chunks);
-						}
-						else {$remainder = $occurence['value'];}
-						$chunks = str_split($remainder,strlen($keyword));
-						$kdisplay = $chunks[0];
+				// Output Code Block
+				echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
+				if (stristr($occurence['value'],$keyword)) {
+					$position = stripos($occurence['value'],$keyword);
+					if ($position > 0) {
+						$chunks = str_split($occurence['value'],$position);
+						$firstblock = $chunks[0];
 						unset($chunks[0]);
-						$lastblock = implode('',$chunks);
-
-						$block = htmlspecialchars($firstblock);
-						$block .= "<span style='background-color:#F0F077'>";
-						$block .= htmlspecialchars($kdisplay);
-						$block .= "</span>";
-						$block .= htmlspecialchars($lastblock);
+						$remainder = implode('',$chunks);
 					}
-					else {$block= htmlspecialchars($occurence['value']);}
-					if ((!strstr($block,' ')) && (strlen($block) > 80)) {
-						$chunks = str_split($block,80);
-						$block = implode('<br>',$chunks);
-					}
-					echo $block;
-					echo "</code>".$vsnipped."</span></td></tr></table>";
+					else {$remainder = $occurence['value'];}
+					$chunks = str_split($remainder,strlen($keyword));
+					$kdisplay = $chunks[0];
+					unset($chunks[0]);
+					$lastblock = implode('',$chunks);
 
-					echo "</div>";
+					$block = htmlspecialchars($firstblock);
+					$block .= "<span style='background-color:#F0F077'>";
+					$block .= htmlspecialchars($kdisplay);
+					$block .= "</span>";
+					$block .= htmlspecialchars($lastblock);
 				}
-			}
-			if (!$vfound) {echo __('No results found for this theme.','wp-bugbot');}
-		}
-		echo "</div>";
+				else {$block= htmlspecialchars($occurence['value']);}
+				if ((!strstr($block,' ')) && (strlen($block) > 80)) {
+					$chunks = str_split($block,80);
+					$block = implode('<br>',$chunks);
+				}
+				echo $block;
+				echo "</code>".$vsnipped."</span></td></tr></table>";
 
-		echo "</div>";
-		exit;
+				echo "</div>";
+			}
+		}
+		if (!$vfound) {echo __('No results found for this theme.','wp-bugbot');}
 	}
+	echo "</div>";
+
+	echo "</div>";
+	exit;
 }
 
 
@@ -2368,20 +2414,26 @@ function bugbot_theme_file_search_ui() {
 	// 1.7.1: different action if editing is not allowed
 	$formaction = 'theme-editor.php';
 	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {$formaction = 'update-core.php';}
-	echo '<form action="'.$formaction.'" method="post" onSubmit="return checkforkeyword();">';
+	echo '<form action="'.$formaction.'" method="post" onSubmit="return checkthemekeyword();">';
 
 	echo '<table><tr>';
 	$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
 	if (!$vissearchpage) {echo '<td width="48"><img src="'.$viconurl.'" width="48" height="48"></td>';}
-	echo '<td><strong><label for="keyword"><a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot '.__('Keyword','wp-bugbot').' '.__('Search','wp-bugbot').'</a>:</label></strong></td>';
+	echo '<td><strong><label for="keyword"><a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot ';
+	// 1.7.4: change label prefix if using multiple search page
+	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {echo __('Theme','wp-bugbot');}
+	else {echo __('Keyword','wp-bugbot');}
+	echo ' '.__('Search','wp-bugbot').'</a>:</label></strong></td>';
+
+	// 1.7.4: use separate keyword element ID for javascript check (themekeyword)
 	if ((strstr($lastsearchedkeyword,"'")) && (strstr($lastsearchedkeyword,'"'))) {
 		// $lastsearchedkeyword = str_replace('"','\"',$lastsearchedkeyword);
 		$lastsearchedkeyword = htmlspecialchars($lastsearchedkeyword,ENT_QUOTES);
-		echo '<td><input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" style="width:200px;" size="35"></td>';
+		echo '<td><input type="text" id="themekeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" style="width:200px;" size="35"></td>';
 	} elseif (strstr($lastsearchedkeyword,"'")) {
-		echo '<td><input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" style="width:200px;" size="35"></td>';
+		echo '<td><input type="text" id="themekeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" style="width:200px;" size="35"></td>';
 	} else {
-		echo "<td><input type='text' id='searchkeyword' name='searchkeyword' value='".$lastsearchedkeyword."' style='width:200px;' size='35'></td>";
+		echo "<td><input type='text' id='themekeyword' name='searchkeyword' value='".$lastsearchedkeyword."' style='width:200px;' size='35'></td>";
 	}
 	echo '<td width=10></td>';
 	echo '<td><input type="checkbox" name="searchcase" value="sensitive"';
@@ -2436,10 +2488,11 @@ function bugbot_theme_file_search_ui() {
 	echo '<input type="submit" class="button-primary" value="'.__('Search','wp-bugbot').'">';
 	echo '</td></tr></table></form></div>';
 
+	// 1.7.4: use separate keyword element ID for javascript check
 	echo "<script language='javascript' type='text/javascript'>
-	function checkforkeyword() {
-		if (document.getElementById('searchkeyword').value == '') {
-			alert('".__('Please enter a keyword to search for.','wp-bugbot')."'); return false;
+	function checkthemekeyword() {
+		if (document.getElementById('themekeyword').value == '') {
+			alert('".__('Please enter a keyword to search theme(s) for.','wp-bugbot')."'); return false;
 		}
 	}
 	</script>";
@@ -2458,244 +2511,244 @@ function bugbot_core_file_do_search() {
 
 	global $vbugbotdebug, $vbugbotslug, $vbugbotversion, $vissearchpage; $vissearchpage = true;
 
-	if (current_user_can('manage_options')) {
+	if (!current_user_can('manage_options')) {return;}
 
-		// set time limit
-		bugbot_set_time_limit();
+	// set time limit
+	bugbot_set_time_limit();
 
-		// get DoNotSearch Extensions
-		// 1.7.0: use function call to get array
-		$dnsarray = bugbot_get_donotsearch_extensions();
+	// get DoNotSearch Extensions
+	// 1.7.0: use function call to get array
+	$dnsarray = bugbot_get_donotsearch_extensions();
 
-		// get Editable Extensions
-		$editableextensions = bugbot_get_editable_extensions();
-		if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
+	// get Editable Extensions
+	$editableextensions = bugbot_get_editable_extensions();
+	if ($vbugbotdebug == '1') {echo "<!-- Editable Extensions: "; print_r($editableextensions); echo " -->";}
 
-		// get Line Snip Length
-		$vsniplinesat = bugbot_get_option('snip_long_lines_at');
-		if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
+	// get Line Snip Length
+	$vsniplinesat = bugbot_get_option('snip_long_lines_at');
+	if ( (!is_numeric($vsniplinesat)) || ($vsniplinesat < 1) ) {$vsniplinesat = false;}
 
-		// print Wordwrap Styles
-		bugbot_wordwrap_styles();
+	// print Wordwrap Styles
+	bugbot_wordwrap_styles();
 
-		// print show/hide snipped javascript
-		bugbot_snipped_javascript();
+	// print show/hide snipped javascript
+	bugbot_snipped_javascript();
 
-		// get Search Request
-		if (isset($_REQUEST['corefilesearch'])) {$coresearch = $_REQUEST['corefilesearch'];} else {$coresearch = 'ALLCORE';}
-		if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
-		if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
+	// get Search Request
+	if (isset($_REQUEST['corefilesearch'])) {$coresearch = $_REQUEST['corefilesearch'];} else {$coresearch = 'ALLCORE';}
+	if (isset($_REQUEST['searchkeyword'])) {$keyword = stripslashes($_REQUEST['searchkeyword']);} else {$keyword = '';}
+	if (isset($_REQUEST['searchcase'])) {$searchcase = $_REQUEST['searchcase'];} else {$searchcase = '';}
 
-		// Debug Output
-		if ($vbugbotdebug == '1') {
-			echo "<!-- Core Search: ".$coresearch." - Keyword: ".$keyword." - Case: ";
-			if ($searchcase == 'sensitive') {echo $searchcase;} else {echo "insensitive";}
-			echo " -->";
-		}
-
-		// save Search Request
-		global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
-		if (bugbot_get_option('save_selected_dir') == 'yes') {$vbugbotsearches['core_file_search_dir'] = $coresearch;}
-		if (bugbot_get_option('save_last_searched') == 'yes') {$vbugbotsearches['core_file_search_keyword'] = $keyword;}
-		if (bugbot_get_option('save_case_sensitive') == 'yes') {$bugbotsearches['core_file_search_case'] = $searchcase;}
-		if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches',$vnewsearches);}
-
-		// Get the Core Files
-		// ------------------
-		if ($coresearch == "ALLCORE") {
-			$coredir[0] = ABSPATH;
-			$coredir[1] = ABSPATH.'/wp-admin/';
-			$coredir[2] = ABSPATH.'/wp-includes/';
-			$corefiles[0] = bugbot_file_search_list_files($coredir[0],false);
-			$corefiles[1] = bugbot_file_search_list_files($coredir[1]);
-			$corefiles[2] = bugbot_file_search_list_files($coredir[2]);
-			$core_files = array_merge($corefiles[0],$corefiles[1]);
-			$core_files = array_merge($core_files,$corefiles[2]);
-		} elseif ($coresearch == 'root') {
-			$coredir = ABSPATH; // non-recursive case
-			$core_files = bugbot_file_search_list_files($coredir,false);
-		} elseif ($coresearch == 'wp-admin') {
-			$coredir = ABSPATH.'/wp-admin/'; // recursive case
-			$core_files = bugbot_file_search_list_files($coredir,false);
-		} elseif ($coresearch == 'wp-includes') {
-			$coredir = ABSPATH.'/wp-includes/'; // recursive case
-			$core_files = bugbot_file_search_list_files($coredir,false);
-		} elseif ($coresearch == '/wp-admin/') {
-			$coredir = ABSPATH.'/wp-admin/'; // non-recursive case
-			$core_files = bugbot_file_search_list_files($coredir,false);
-		} elseif ($coresearch == '/wp-includes/') {
-			$coredir = ABSPATH.'/wp-includes/'; // non-recursive case
-			$core_files = bugbot_file_search_list_files($coredir,false);
-		} else {
-			$coredir = ABSPATH.$coredir; // recursive search
-			$core_files = bugbot_file_search_list_files($coredir);
-		}
-
-		if ($vbugbotdebug == '1') {echo "<!-- Core File List Dump: "; print_r($core_files); echo " -->";}
-
-		$i = 0; // strip do not search extensions
-		foreach ($core_files as $core_file) {
-			foreach ($dnsarray as $dns) {
-				$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
-				if (substr($core_file,$len) == $dns) {unset($core_files[$i]);}
-			}
-			$i++;
-		}
-
-		echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
-
-		// Admin Notices Boxer
-		if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
-
-		// Search Interface Header
-		// -----------------------
-		$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
-		echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
-		echo '<td align="center"><h2>WP BugBot <i>v'.$vbugbotversion.'</i><br><br>'.__('Wordpress Core File Search','wp-bugbot').'</h2></td>';
-		echo '</tr></table></center>';
-
-		// Core Search Interface
-		// ---------------------
-		echo "<br><center>".bugbot_core_file_search_ui()."<br><br>";
-
-		if ($keyword == '') {echo __('Error: No Keyword Specified!','wp-bugbot'); return;}
-
-		// Search Result Header
-		// --------------------
-		echo "<center><p><div id='search_message_box'>";
-		echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
-		echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
-		if ($coresearch == "ALLCORE") {
-			echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files from ALL Wordpress Core files for','wp-bugbot')." ";
-			echo "<code>".htmlspecialchars($keyword)."</code>";
-		} elseif ( ($coresearch == '/wp-admin/') || ($coresearch == '/wp-includes/') || ($coresearch == '/') ) {
-			echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files from','wp-bugbot')." '".$coresearch." ".__('path for','wp-bugbot')." ";
-			echo "<code>".htmlspecialchars($keyword)."</code>";
-		} else {
-			echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files of the Wordpress path','wp-bugbot')." '".$coresearch."' ".__('path and subdirectories for','wp-bugbot')." ";
-			echo "<code>".htmlspecialchars($keyword)."</code>";
-		}
-		if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
-		else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
-		echo "</font></div></td></tr></table></div></p></center>";
-
-		// Load Search Sidebar
-		// -------------------
-		bugbot_search_sidebar();
-
-		// Search Results
-		// --------------
-		echo "<div id='filesearchresults' style='width:100%;'>";
-		$vsnipcount = 0; $coreref = "";
-		foreach ($core_files as $core_file) {
-
-			$vfound = false;
-
-			$real_file = $coredir.$core_file;
-
-			// 1.5.0: fix for file path for all core search
-			if ($coresearch == "ALLCORE") {
-				if (in_array($core_file,$corefiles[0])) {
-					$real_file = $coredir[0].$core_file;
-					$searchdir = urlencode('/');
-				}
-				if (in_array($core_file,$corefiles[1])) {
-					$real_file = $coredir[1].$core_file;
-					$searchdir = urlencode('/wp-admin/');
-				}
-				if (in_array($core_file,$corefiles[2])) {
-					$real_file = $coredir[2].$core_file;
-					$searchdir = urlencode('/wp-includes/');
-				}
-			} else {
-				$searchdir = urlencode($coresearch);
-				$real_file = $coredir.$core_file;
-			}
-
-			$real_file = str_replace('//','/',$real_file);
-			if (strstr($real_file,'\\')) {$real_file = str_replace('/','\\',$real_file);}
-
-			if ($vbugbotdebug == '1') {echo "<!-- ".$coredir." --- ".$real_file." --- ".$core_file." -->";}
-
-			// Read File
-			$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
-
-			// Loop Occurrences
-			$occurences = array();
-			$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
-			if (count($occurences) > 0) {
-
-				$vfound = true;
-
-				// Line Header
-				echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
-
-				// File Header
-				echo '<div style="display:inline-block;text-align:center;min-width:600px;"><b>File: ';
-				echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchdir='.$searchdir.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';
-				echo $core_file.'</a></b></div>';
-
-				foreach ($occurences as $occurence) {
-
-					// Snip Long Lines
-					if ($vsniplinesat) {
-						if (strlen($occurence['value']) > $vsniplinesat) {
-							$vthisoccurence = $occurence['value'];
-							$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
-							$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
-							$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
-							$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
-							$vsnipcount++;
-						} else {$vsnipped = "";}
-					}
-
-					echo "<div style='text-align:left;vertical-align:top;'>";
-
-					echo "<table><tr><td style='text-align:center;vertical-align:top;width:40px;min-width:40px;'>";
-					if ($coresearch != "ALLCORE") {echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchkeyword='.urlencode($keyword).'&searchdir='.$searchdir.'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-					else {echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchkeyword='.urlencode($keyword).'&searchdir='.$searchdir.'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
-					echo "</td>";
-
-					// Output Code Block
-					echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
-					if (stristr($occurence['value'],$keyword)) {
-						$position = stripos($occurence['value'],$keyword);
-						if ($position > 0) {
-							$chunks = str_split($occurence['value'],$position);
-							$firstblock = $chunks[0];
-							unset($chunks[0]);
-							$remainder = implode('',$chunks);
-						}
-						else {$remainder = $occurence['value'];}
-						$chunks = str_split($remainder,strlen($keyword));
-						$kdisplay = $chunks[0];
-						unset($chunks[0]);
-						$lastblock = implode('',$chunks);
-
-						$block = htmlspecialchars($firstblock);
-						$block .= "<span style='background-color:#F0F077'>";
-						$block .= htmlspecialchars($kdisplay);
-						$block .= "</span>";
-						$block .= htmlspecialchars($lastblock);
-					}
-					else {$block= htmlspecialchars($occurence['value']);}
-					if ((!strstr($block,' ')) && (strlen($block) > 80)) {
-						$chunks = str_split($block,80);
-						$block = implode('<br>',$chunks);
-					}
-					echo $block;
-					echo "</code>".$vsnipped."</span></td></tr></table>";
-
-					echo "</div>";
-				}
-			}
-			if (!$vfound) {echo __('No results found for this directory.','wp-bugbot');}
-		}
-		echo "</div>";
-
-		echo "</div>";
-		exit;
+	// Debug Output
+	if ($vbugbotdebug == '1') {
+		echo "<!-- Core Search: ".$coresearch." - Keyword: ".$keyword." - Case: ";
+		if ($searchcase == 'sensitive') {echo $searchcase;} else {echo "insensitive";}
+		echo " -->";
 	}
+
+	// save Search Request
+	global $vbugbotsearches; $vnewsearches = $vbugbotsearches;
+	// 1.7.4: fix to search save logic
+	if (bugbot_get_option('save_selected_dir') == 'yes') {$vnewsearches['core_file_search_dir'] = $coresearch;}
+	if (bugbot_get_option('save_last_searched') == 'yes') {$vnewsearches['core_file_search_keyword'] = $keyword;}
+	if (bugbot_get_option('save_case_sensitive') == 'yes') {$vnewsearches['core_file_search_case'] = $searchcase;}
+	if ($vnewsearches != $vbugbotsearches) {update_option('wp_bugbot_searches', $vnewsearches); $vbugbotsearches = $vnewsearches;}
+
+	// Get the Core Files
+	// ------------------
+	if ($coresearch == "ALLCORE") {
+		$coredir[0] = ABSPATH;
+		$coredir[1] = ABSPATH.'/wp-admin/';
+		$coredir[2] = ABSPATH.'/wp-includes/';
+		$corefiles[0] = bugbot_file_search_list_files($coredir[0],false);
+		$corefiles[1] = bugbot_file_search_list_files($coredir[1]);
+		$corefiles[2] = bugbot_file_search_list_files($coredir[2]);
+		$core_files = array_merge($corefiles[0],$corefiles[1]);
+		$core_files = array_merge($core_files,$corefiles[2]);
+	} elseif ($coresearch == 'root') {
+		$coredir = ABSPATH; // non-recursive case
+		$core_files = bugbot_file_search_list_files($coredir,false);
+	} elseif ($coresearch == 'wp-admin') {
+		$coredir = ABSPATH.'/wp-admin/'; // recursive case
+		$core_files = bugbot_file_search_list_files($coredir,false);
+	} elseif ($coresearch == 'wp-includes') {
+		$coredir = ABSPATH.'/wp-includes/'; // recursive case
+		$core_files = bugbot_file_search_list_files($coredir,false);
+	} elseif ($coresearch == '/wp-admin/') {
+		$coredir = ABSPATH.'/wp-admin/'; // non-recursive case
+		$core_files = bugbot_file_search_list_files($coredir,false);
+	} elseif ($coresearch == '/wp-includes/') {
+		$coredir = ABSPATH.'/wp-includes/'; // non-recursive case
+		$core_files = bugbot_file_search_list_files($coredir,false);
+	} else {
+		$coredir = ABSPATH.$coredir; // recursive search
+		$core_files = bugbot_file_search_list_files($coredir);
+	}
+
+	if ($vbugbotdebug == '1') {echo "<!-- Core File List Dump: "; print_r($core_files); echo " -->";}
+
+	$i = 0; // strip do not search extensions
+	foreach ($core_files as $core_file) {
+		foreach ($dnsarray as $dns) {
+			$dns = ".".$dns; $len = strlen($dns); $len = -abs($len);
+			if (substr($core_file,$len) == $dns) {unset($core_files[$i]);}
+		}
+		$i++;
+	}
+
+	echo '<div class="wrap" id="pagewrap" style="margin-right:0px !important;">';
+
+	// Admin Notices Boxer
+	if (function_exists('wqhelper_admin_notice_boxer')) {wqhelper_admin_notice_boxer();}
+
+	// Search Interface Header
+	// -----------------------
+	$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
+	echo "<center><table><tr><td><img src='".$viconurl."' width='96' height='96'></td><td width='32'></td>";
+	echo '<td align="center"><h2>WP BugBot <i>v'.$vbugbotversion.'</i><br><br>'.__('Wordpress Core File Search','wp-bugbot').'</h2></td>';
+	echo '</tr></table></center>';
+
+	// Core Search Interface
+	// ---------------------
+	echo "<br><center>".bugbot_core_file_search_ui()."<br><br>";
+
+	if ($keyword == '') {echo __('Error: No Keyword Specified!','wp-bugbot'); return;}
+
+	// Search Result Header
+	// --------------------
+	echo "<center><p><div id='search_message_box'>";
+	echo "<table style='background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;'>";
+	echo "<tr><td><div class='message' style='margin:0.5em;'><font style='font-size:10.5pt; font-weight:bold;'>";
+	if ($coresearch == "ALLCORE") {
+		echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files from ALL Wordpress Core files for','wp-bugbot')." ";
+		echo "<code>".htmlspecialchars($keyword)."</code>";
+	} elseif ( ($coresearch == '/wp-admin/') || ($coresearch == '/wp-includes/') || ($coresearch == '/') ) {
+		echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files from','wp-bugbot')." '".$coresearch." ".__('path for','wp-bugbot')." ";
+		echo "<code>".htmlspecialchars($keyword)."</code>";
+	} else {
+		echo __('Searched','wp-bugbot')." ".count($core_files)." ".__('files of the Wordpress path','wp-bugbot')." '".$coresearch."' ".__('path and subdirectories for','wp-bugbot')." ";
+		echo "<code>".htmlspecialchars($keyword)."</code>";
+	}
+	if ($searchcase == 'sensitive') {echo " (".__('case sensitive','wp-bugbot').")...";}
+	else {$searchcase = 'insensitive'; echo " (".__('case insensitive','wp-bugbot').")...";}
+	echo "</font></div></td></tr></table></div></p></center>";
+
+	// Load Search Sidebar
+	// -------------------
+	bugbot_search_sidebar();
+
+	// Search Results
+	// --------------
+	echo "<div id='filesearchresults' style='width:100%;'>";
+	$vsnipcount = 0; $coreref = "";
+	foreach ($core_files as $core_file) {
+
+		$vfound = false;
+
+		$real_file = $coredir.$core_file;
+
+		// 1.5.0: fix for file path for all core search
+		if ($coresearch == "ALLCORE") {
+			if (in_array($core_file,$corefiles[0])) {
+				$real_file = $coredir[0].$core_file;
+				$searchdir = urlencode('/');
+			}
+			if (in_array($core_file,$corefiles[1])) {
+				$real_file = $coredir[1].$core_file;
+				$searchdir = urlencode('/wp-admin/');
+			}
+			if (in_array($core_file,$corefiles[2])) {
+				$real_file = $coredir[2].$core_file;
+				$searchdir = urlencode('/wp-includes/');
+			}
+		} else {
+			$searchdir = urlencode($coresearch);
+			$real_file = $coredir.$core_file;
+		}
+
+		$real_file = str_replace('//','/',$real_file);
+		if (strstr($real_file,'\\')) {$real_file = str_replace('/','\\',$real_file);}
+
+		if ($vbugbotdebug == '1') {echo "<!-- ".$coredir." --- ".$real_file." --- ".$core_file." -->";}
+
+		// Read File
+		$fh = fopen($real_file,'r'); $filecontents = stream_get_contents($fh); fclose($fh);
+
+		// Loop Occurrences
+		$occurences = array();
+		$occurences = bugbot_file_search_for_keyword($filecontents,$keyword,$searchcase);
+		if (count($occurences) > 0) {
+
+			$vfound = true;
+
+			// Line Header
+			echo '<br><div style="display:inline-block;width:40px;text-align:center;float:left;">Line</div>';
+
+			// File Header
+			echo '<div style="display:inline-block;text-align:center;min-width:600px;"><b>File: ';
+			echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchdir='.$searchdir.'&searchkeyword='.urlencode($keyword).'"  style="text-decoration:none;">';
+			echo $core_file.'</a></b></div>';
+
+			foreach ($occurences as $occurence) {
+
+				// Snip Long Lines
+				if ($vsniplinesat) {
+					if (strlen($occurence['value']) > $vsniplinesat) {
+						$vthisoccurence = $occurence['value'];
+						$occurence['value'] = substr($occurence['value'],0,$vsniplinesat);
+						$vsnipped = " <i><a href='javascript:void(0);' onclick='showsnipped(\"".$vsnipcount."\");'>[...".__('more','wp-bugbot')."...]</a></i>";
+						$vsnipped .= "<div id='snip".$vsnipcount."' style='display:none;'><code>".substr($vthisoccurence,$vsniplinesat)."</code>";
+						$vsnipped .= "<a href='javascript:void(0);' onclick='hidesnipped(\"".$vsnipcount."\");'>[...".__('less','wp-bugbot')."...]</a></div>";
+						$vsnipcount++;
+					} else {$vsnipped = "";}
+				}
+
+				echo "<div style='text-align:left;vertical-align:top;'>";
+
+				echo "<table><tr><td style='text-align:center;vertical-align:top;width:40px;min-width:40px;'>";
+				if ($coresearch != "ALLCORE") {echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchkeyword='.urlencode($keyword).'&searchdir='.$searchdir.'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+				else {echo '<a href="update-core.php?showfilecontents='.urlencode($core_file).'&corefile=yes&searchkeyword='.urlencode($keyword).'&searchdir='.$searchdir.'&scrolltoline='.$occurence['line'].'">'.$occurence['line'].'</a>: ';}
+				echo "</td>";
+
+				// Output Code Block
+				echo "<td class='wordwrapcell'><span style='background-color:#eeeeee;'><code>";
+				if (stristr($occurence['value'],$keyword)) {
+					$position = stripos($occurence['value'],$keyword);
+					if ($position > 0) {
+						$chunks = str_split($occurence['value'],$position);
+						$firstblock = $chunks[0];
+						unset($chunks[0]);
+						$remainder = implode('',$chunks);
+					}
+					else {$remainder = $occurence['value'];}
+					$chunks = str_split($remainder,strlen($keyword));
+					$kdisplay = $chunks[0];
+					unset($chunks[0]);
+					$lastblock = implode('',$chunks);
+
+					$block = htmlspecialchars($firstblock);
+					$block .= "<span style='background-color:#F0F077'>";
+					$block .= htmlspecialchars($kdisplay);
+					$block .= "</span>";
+					$block .= htmlspecialchars($lastblock);
+				}
+				else {$block= htmlspecialchars($occurence['value']);}
+				if ((!strstr($block,' ')) && (strlen($block) > 80)) {
+					$chunks = str_split($block,80);
+					$block = implode('<br>',$chunks);
+				}
+				echo $block;
+				echo "</code>".$vsnipped."</span></td></tr></table>";
+
+				echo "</div>";
+			}
+		}
+		if (!$vfound) {echo __('No results found for this directory.','wp-bugbot');}
+	}
+	echo "</div>";
+
+	echo "</div>";
+	exit;
 }
 
 
@@ -2736,21 +2789,27 @@ function bugbot_core_file_search_ui() {
 	if (isset($vbugbotsearches['core_file_search_dir'])) {$lastsearcheddir = $vbugbotsearches['core_file_search_dir'];}
 	if (isset($vbugbotsearches['core_file_search_case'])) {$lastsearchedcase = $vbugbotsearches['core_file_search_case'];}
 
-	echo '<div id="corefilesearchbar" style="display:inline;width:100%;margin-bottom:10px;" class="alignright"><form action="update-core.php" method="post" onSubmit="return checkforkeyword();">';
+	echo '<div id="corefilesearchbar" style="display:inline;width:100%;margin-bottom:10px;" class="alignright"><form action="update-core.php" method="post" onSubmit="return checkcorekeyword();">';
 
 	echo '<table><tr>';
 	$viconurl = plugins_url('images/wp-bugbot.png',__FILE__);
 	if (!$vissearchpage) {echo '<td width="48"><img src="'.$viconurl.'" width="48" height="48"></td>';}
 	echo '<td><strong><label for="keyword">';
-	echo '<a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot '.__('Keyword','wp-bugbot').' '.__('Search','wp-bugbot').'</a>:</label></strong></td>';
+	echo '<a href="http://wordquest.org/plugins/wp-bugbot/" style="text-decoration:none;" target=_blank>WP BugBot ';
+	// 1.7.4: change label prefix if using multiple search page
+	if (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT) {echo __('Core','wp-bugbot');}
+	else {echo __('Keyword','wp-bugbot');}
+	echo ' '.__('Search','wp-bugbot').'</a>:</label></strong></td>';
+
+	// 1.7.4: use separate keyword element ID for javascript check (corekeyword)
 	if ((strstr($lastsearchedkeyword,"'")) && (strstr($lastsearchedkeyword,'"'))) {
 		// $lastsearchedkeyword = str_replace('"','\"',$lastsearchedkeyword);
 		$lastsearchedkeyword = htmlspecialchars($lastsearchedkeyword,ENT_QUOTES);
-		echo '<td><input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35" style="width:150px;"></td>';
+		echo '<td><input type="text" id="corekeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35" style="width:150px;"></td>';
 	} elseif (strstr($lastsearchedkeyword,"'")) {
-		echo '<td><input type="text" id="searchkeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35" style="width:150px;"></td>';
+		echo '<td><input type="text" id="corekeyword" name="searchkeyword" value="'.$lastsearchedkeyword.'" size="35" style="width:150px;"></td>';
 	} else {
-		echo "<td><input type='text' id='searchkeyword' name='searchkeyword' value='".$lastsearchedkeyword."' size='35' style='width:150px;'></td>";
+		echo "<td><input type='text' id='corekeyword' name='searchkeyword' value='".$lastsearchedkeyword."' size='35' style='width:150px;'></td>";
 	}
 	echo '<td width="10"></td>';
 	echo '<td><input type="checkbox" name="searchcase" value="sensitive"';
@@ -2798,10 +2857,11 @@ function bugbot_core_file_search_ui() {
 	echo '<input type="submit" class="button-primary" value="'.__('Search','wp-bugbot').'">';
 	echo '</td></tr></table></form></div>';
 
+	// 1.7.4: use separate keyword element ID for javascript check
 	echo "<script language='javascript' type='text/javascript'>
-	function checkforkeyword() {
-		if (document.getElementById('searchkeyword').value == '') {
-			alert('".__('Please enter a keyword to search for.','wp-bugbot')."'); return false;
+	function checkcorekeyword() {
+		if (document.getElementById('corekeyword').value == '') {
+			alert('".__('Please enter a keyword to search core for.','wp-bugbot')."'); return false;
 		}
 	}
 	</script>";
