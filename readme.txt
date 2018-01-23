@@ -7,7 +7,7 @@ Plugin URI: http://wordquest.net/plugins/wp-bugbot/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.8
+Tested up to: 4.9.1
 Stable tag: trunk
 
 Search your current plugin/theme/core files for keywords from admin. A 3rd party plugin bugfixers dream.
@@ -158,6 +158,12 @@ simply use this same filter and return an empty array.
 
 
 == Changelog ==
+
+= 1.7.5 =
+* Update to Freemius SDK to 1.2.2.9
+* Update to Wordquest Helper 1.6.9
+* Improved plugin option for filtering
+* Fix to theme object for search
 
 = 1.7.4 =
 * Fix to last searched saving logic
