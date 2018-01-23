@@ -4,7 +4,7 @@
 Plugin Name: WP BugBot
 Plugin URI: http://wordquest.org/plugins/wp-bugbot/
 Description: WP BugBot, Plugin And Theme Search Editor Engine! Search installed plugin and theme files (and core) for code from the editor screens. A bugfixers dream..!
-Version: 1.7.4
+Version: 1.7.5
 Author: Tony Hayes
 Author URI: http://dreamjester.net
 GitHub Plugin URI: majick777/wp-bugbot
@@ -12,6 +12,10 @@ GitHub Plugin URI: majick777/wp-bugbot
 */
 
 if (!function_exists('add_action')) {exit;}
+
+// TODO: error log dashboard widget like error-log-monitor plugin?
+// TODO: recursive check for owner/group file permission mismatches?
+
 
 // --------------------
 // === Setup Plugin ===
@@ -22,7 +26,7 @@ if (!function_exists('add_action')) {exit;}
 // -----------------
 global $wordquestplugins, $vbugbotslug, $vbugbotversion;
 $vslug = $vbugbotslug = 'wp-bugbot';
-$wordquestplugins[$vslug]['version'] = $vbugbotversion = '1.7.4';
+$wordquestplugins[$vslug]['version'] = $vbugbotversion = '1.7.5';
 $wordquestplugins[$vslug]['title'] = 'WP BugBot';
 $wordquestplugins[$vslug]['namespace'] = 'bugbot';
 $wordquestplugins[$vslug]['settings'] = 'bugbot';
@@ -65,11 +69,19 @@ function bugbot_freemius($vslug) {
 	}
 
     if (!isset($bugbot_freemius)) {
-        if (!class_exists('Freemius')) {require_once(dirname(__FILE__).'/freemius/start.php');}
 
+        // start the Freemius SDK
+        if (!class_exists('Freemius')) {
+        	$vfreemiuspath = dirname(__FILE__).'/freemius/start.php';
+        	if (!file_exists($vfreemiuspath)) {return;}
+        	require_once($vfreemiuspath);
+        }
+
+		// 1.7.5: added type plugin to settings
 		$bugbot_settings = array(
             'id'                => '159',
             'slug'              => $vslug,
+            'type'				=> 'plugin',
             'public_key'        => 'pk_03b9fce070af83d5e91dcffcb8719',
             'is_premium'        => $vpremium,
             'has_addons'        => false,
@@ -78,7 +90,7 @@ function bugbot_freemius($vslug) {
             'menu'              => array(
                 'slug'       	=> $vslug,
                 'first-path' 	=> 'admin.php?page='.$vslug.'&welcome=true',
-                'parent' 		=> array('slug'=>'wordquest'),
+                'parent' 		=> array('slug' => 'wordquest'),
                 'contact'		=> $vpremium,
                 // 'support'   	=> false,
                 // 'account'    => false,
@@ -229,33 +241,34 @@ if (!function_exists('bugbot_interface_hook'))  {
 
 // Get Plugin Option
 // -----------------
-function bugbot_get_option($vkey,$vfilter=true) {
-	global $vbugbot;
-	if (isset($vbugbot[$vkey])) {
-		if ($vfilter) {return apply_filters($vkey,$vbugbot[$vkey]);}
-		else {return $vbugbot[$vkey];}
-	} else {
+function bugbot_get_option($vkey, $vfilter=true) {
+	// 1.7.5: rewrite to allow filtering and caching of defaults
+	global $vbugbot, $vbugbot_defaults;
+	if (isset($vbugbot[$vkey])) {$vvalue = $vbugbot[$vkey];}
+	else {
 		// 1.7.1: fallback to default options
-		$vdefaults = bugbot_default_options();
-		if (isset($vdefaults[$vkey])) {return $vdefaults[$vkey];}
-		else {return '';}
+		if (!isset($vbugbot_defaults)) {$vbugbot_defaults = bugbot_default_options();}
+		if (isset($vbugbot_defaults[$vkey])) {$vvalue = $vbugbot_defaults[$vkey];}
+		else {$vvalue = null;}
 	}
+	if ($vfilter) {$vvalue = apply_filters($vkey, $vvalue);}
+	return $vvalue;
 }
 
 // Set Default Settings
 // --------------------
-register_activation_hook(__FILE__,'bugbot_add_options');
+register_activation_hook(__FILE__, 'bugbot_add_options');
 function bugbot_add_options() {
 
 	// 1.7.0: use plugin global option
 	global $vbugbot;
 	// 1.7.1: use default option function
 	$vbugbot = bugbot_default_options();
-	add_option('wp_bugbot',$vbugbot);
+	add_option('wp_bugbot', $vbugbot);
 
 	if (file_exists(dirname(__FILE__).'/updatechecker.php')) {$vadsboxoff = '';} else {$vadsboxoff = 'checked';}
 	$sidebaroptions = array('adsboxoff'=>$vadsboxoff,'donationboxoff'=>'','reportboxoff'=>'','installdate'=>date('Y-m-d'));
-	add_option('bugbot_sidebar_options',$sidebaroptions);
+	add_option('bugbot_sidebar_options', $sidebaroptions);
 }
 
 // get Default Options
@@ -1454,16 +1467,17 @@ function bugbot_show_unlisted_files($vtype) {
 
 			foreach ( $file_types as $type ) {
 				switch ( $type ) {
+					// 1.7.5: fix to use theme object instead of string
 					case 'php':
-						$allowed_files += $theme->get_files( 'php', $depth );
+						$allowed_files += $themeobject->get_files( 'php', $depth );
 						break;
 					case 'css':
-						$style_files = $theme->get_files( 'css' );
+						$style_files = $themeobject->get_files( 'css' );
 						$allowed_files['style.css'] = $style_files['style.css'];
 						$allowed_files += $style_files;
 						break;
 					default:
-						$allowed_files += $theme->get_files( $type );
+						$allowed_files += $themeobject->get_files( $type );
 						break;
 				}
 			}
@@ -1866,8 +1880,9 @@ function bugbot_plugin_file_do_search() {
 					}
 				}
 			}
-			if (!$vfound) {echo __('No results found for this plugin.','wp-bugbot');}
 		}
+		// 1.7.5: move this line to correct position (not for each file)
+		if (!$vfound) {echo __('No results found for this plugin.','wp-bugbot');}
 	}
 	echo "</div>";
 
@@ -2364,8 +2379,9 @@ function bugbot_theme_file_do_search() {
 				echo "</div>";
 			}
 		}
-		if (!$vfound) {echo __('No results found for this theme.','wp-bugbot');}
 	}
+	// 1.7.5: move this line to correct position (not for each file)
+	if (!$vfound) {echo __('No results found for this theme.','wp-bugbot');}
 	echo "</div>";
 
 	echo "</div>";
@@ -2743,8 +2759,9 @@ function bugbot_core_file_do_search() {
 				echo "</div>";
 			}
 		}
-		if (!$vfound) {echo __('No results found for this directory.','wp-bugbot');}
 	}
+	// 1.7.5: move this line to correct position (not for each file)
+	if (!$vfound) {echo __('No results found for this directory.','wp-bugbot');}
 	echo "</div>";
 
 	echo "</div>";
