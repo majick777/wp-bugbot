@@ -641,7 +641,7 @@ class bugbot_loader {
 
 		$readme = dirname($args['file']).'/readme.txt';
 		$contents = file_get_contents($readme);
-		$parser = dirname($args['file']).'/readme.php';
+		$parser = dirname($args['file']).'/reader.php';
 
 		if (file_exists($parser)) {
 
