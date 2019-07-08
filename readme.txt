@@ -2,12 +2,12 @@
 Contributors: majick
 Donate link: http://wordquest.org/donate/?plugin=wp-bugbot
 Tags: plugin search, theme search, keyword search, core search, file search, editor, plugin editor, theme editor
-Author URI: http://dreamjester.net
-Plugin URI: http://wordquest.net/plugins/wp-bugbot/
+Author URI: http://wpmedic.tech
+Plugin URI: http://wpmedic.tech/wp-bugbot/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.9.1
+Tested up to: 4.9.10
 Stable tag: trunk
 
 Search your current plugin/theme/core files for keywords from admin. A 3rd party plugin bugfixers dream.
@@ -30,8 +30,10 @@ A 3rd party developer and bugfixers dream... find and squash those pesty bugs.
 * You can now search (but not edit) Wordpress Core files too
 * Works with Multisite (access from network/plugins.php etc.)
 
-[WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
+[WP BugBot Home](http://wpmedic.tech/wp-bugbot/)
 [Support Forum](http://wordquest.org/support/wp-bugbot/)
+[Contribute](http://wordquest.org/contribute/?plugin=wp-bugbot)
+
 
 **Search**:
 
@@ -61,7 +63,9 @@ A 3rd party developer and bugfixers dream... find and squash those pesty bugs.
 * Javascript jump to line and find in code on editor screen
 
 [WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
-[Support Forum](http://wordquest.org/support/wp-bugbot/)
+[Support](http://wordquest.org/support/wp-bugbot/)
+[Contribute](http://wordquest.org/contribute/?plugin=wp-bugbot)
+
 
 == Installation ==
 
@@ -69,6 +73,7 @@ A 3rd party developer and bugfixers dream... find and squash those pesty bugs.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. The search menus are added to the Plugin and Theme Editors.
 4. Core search is available via the Updates page.
+
 
 == Frequently Asked Questions ==
 
@@ -78,7 +83,7 @@ When the plugin is activated, the search interfaces are available:
 The Plugin search interface is at the top of the Plugins -> Editor page.
 The Theme search interface is at the top of the Appearance -> Editor page.
 The Wordpress Core search interface is at the top of the Dashboard -> Updates page.
-The PHP Error Log Viewer at the bottom of the Settings -> WP BugBot admin page.
+The PHP Error Log Viewer at the bottom of the WP BugBot admin page.
 
 
 = Where are the plugin settings? =
@@ -91,7 +96,6 @@ Click on Plugin Options at the top of the search sidebar to change available opt
 = How can I edit files with unsupported extensions? =
 
 By default Wordpress limits the editable extensions for files in the inbuilt editor.
-The default extensions are: php, txt, text, js, css, html, htm, xml, inc, include
 If you want to change which files extensions you can edit you can do so this way:
 
 Perform a search from an editor page and the WP BugBot plugin sidebar will appear.
@@ -129,14 +133,11 @@ BugBot will detect this is the case and move all interfaces to the core Updates 
 
 = The scroll to line feature is not working properly for me? = 
 
-This feature is thanks to Andrew Buckman's Wordpress Editor Search:
+This original feature was thanks to Andrew Buckman's Wordpress Editor Search:
 http://www.theoneandtheonly.com/wordpress-editor-search/
-A number of alternatives were tested and this one worked the best at the time,
-however there is no *foolproof* way to scroll to a specific line inside a normal 
-textarea that works in all browsers and browser versions. 
-If the line is not scrolled to automatically, you can simply click on the 
-pre-filled 'Find in Text' to search for the occurence inside the text area. 
-(Alternatively, Press Control-F or Apple-F to use your browser's inbuilt search.)
+This should still work fine for legacy installations (pre WP 4.9), however as the code
+editor has been replaced by Code Mirror from WP 4.9 onwards, a new solution will need
+to be implemented for this in a future version.
 
 
 = How do I filter the PHP error log files searched for? = 
@@ -158,6 +159,21 @@ simply use this same filter and return an empty array.
 
 
 == Changelog ==
+
+= 1.8.0 =
+* Updated to use new Plugin Loader class
+* Updated to WordQuest Helper 1.7.4
+* Updated to Freemius SDK 2.2.2
+* Fix for undefined firstblock variable
+
+= 1.7.9 = 
+* Updated to use global settings array
+* Removed replace Theme Editor default (no longer needed)
+* Filter manage plugin settings capability
+* Fix editable theme and plugin extensions
+* Added settings reset button and processing
+* Fixes for warnings and undefined variables
+* Use generic page elements for editor toolbar
 
 = 1.7.5 =
 * Update to Freemius SDK to 1.2.2.9
@@ -250,9 +266,10 @@ simply use this same filter and return an empty array.
 
 == Other Notes ==
 
-[WP BugBot Home](http://wordquest.org/plugins/wp-bugbot/)
+[WP BugBot Home](http://wpmedic.tech/wp-bugbot/)
 
 Like this plugin? Check out more of our free plugins here: 
+[WP Medic](http://wpmedic.tech/plugins/ "WP Medic Plugins")
 [WordQuest](http://wordquest.org/plugins/ "WordQuest Plugins")
 
 Looking for an awesome theme? Check out my child theme framework:
@@ -271,7 +288,7 @@ To aid directly in development, please fork on Github and do a pull request:
 [WP BugBot on Github](http://github.com/majick777/wp-bugbot/)
 
 = Limitations = 
-* 'Scroll to Line' editor javascript feature is not precise in all browsers.
+* 'Scroll to Line' and 'Search in Code' features not working with Code Mirror.
 
 = Planned Updates/Features =
 * Integration of Debug Bar Features with linked search ability
