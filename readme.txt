@@ -7,7 +7,7 @@ Plugin URI: http://wpmedic.tech/wp-bugbot/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.9.10
+Tested up to: 5.2.2
 Stable tag: trunk
 
 Search your current plugin/theme/core files for keywords from admin. A 3rd party plugin bugfixers dream.
@@ -160,6 +160,11 @@ simply use this same filter and return an empty array.
 
 == Changelog ==
 
+= 1.8.1 =
+* Updated to Plugin Loader 1.0.7
+* Updated to WordQuest Helper 1.7.5
+* Updated to Freemius SDK 2.3.0
+
 = 1.8.0 =
 * Updated to use new Plugin Loader class
 * Updated to WordQuest Helper 1.7.4
@@ -269,8 +274,8 @@ simply use this same filter and return an empty array.
 [WP BugBot Home](http://wpmedic.tech/wp-bugbot/)
 
 Like this plugin? Check out more of our free plugins here: 
-[WP Medic](http://wpmedic.tech/plugins/ "WP Medic Plugins")
-[WordQuest](http://wordquest.org/plugins/ "WordQuest Plugins")
+[WP Medic Tools](http://wpmedic.tech/ "WP Medic Tools")
+[WordQuest Plugins](http://wordquest.org/plugins/ "WordQuest Plugins")
 
 Looking for an awesome theme? Check out my child theme framework:
 [BioShip Child Theme Framework](http://bioship.space "BioShip Child Theme Framework")
