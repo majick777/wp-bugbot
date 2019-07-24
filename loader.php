@@ -5,7 +5,7 @@
 // =====================================
 //
 // --------------
-// Version: 1.0.6
+// Version: 1.0.7
 // --------------
 // * changelog at end of file! *
 //
@@ -639,6 +639,7 @@ class bugbot_loader {
 
 		echo "<html><body style='font-family: Consolas, \"Lucida Console\", Monaco, FreeMono, monospace'>";
 
+        // 1.0.7: changed readme.php to reader.php (for Github)
 		$readme = dirname($args['file']).'/readme.txt';
 		$contents = file_get_contents($readme);
 		$parser = dirname($args['file']).'/reader.php';
@@ -726,11 +727,14 @@ class bugbot_loader {
 		$premium = false; if (isset($args['plan']) && ($args['plan'] == 'premium')) {$premium = true;}
 
 		// --- maybe redirect link to plugin support forum ---
+		// TODO: change to use new Freemius 2.3.0 support link filter
 		if (isset($_REQUEST['page']) && ($_REQUEST['page'] == $args['slug'].'-wp-support-forum') && is_admin()) {
 			if (!function_exists('wp_redirect')) {include(ABSPATH.WPINC.'/pluggable.php');}
 			if (isset($args['support'])) {
 				// changes the support forum slug for premium based on the pro plugin file slug
-				if ($premium) {$support_url = str_replace($args['slug'], $args['proslug'], $args['support']);}
+				// 1.0.7: fix support URL undefined variable warning
+				$suport_url = $args['support'];
+				if ($premium) {$support_url = str_replace($args['slug'], $args['proslug'], $support_url);}
 				$support_url = apply_filters('freemius_plugin_support_url_redirect', $support_url, $args['slug']);
 				wp_redirect($support_url); exit;
 			}
@@ -1204,6 +1208,10 @@ function bugbot_load_prefixed_functions() {
 // =========
 // CHANGELOG
 // =========
+
+// == 1.0.7 ==
+// - fix support URL undefined variable warning
+// - change readme.php to reader.php (for GitHub)
 
 // == 1.0.6 ==
 // - added global options filter
